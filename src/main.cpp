@@ -1,9 +1,7 @@
 #include <exception>
 #include <iostream>
 
-#include <SFML/Window/WindowBase.hpp>
-#include <SFML/Window/Event.hpp>
-#include <SFML/Window/Vulkan.hpp>
+#include <SFML/Window.hpp>
 
 #include <vulkan/vulkan.hpp>
 
@@ -11,20 +9,17 @@ int main(int argv, char **args)
 {
     try
     {
-        sf::WindowBase window(sf::VideoMode(640, 480), "Triangle");
+        sf::WindowBase window(sf::VideoMode(1280, 720), "Triangle", sf::Style::Close);
 
         std::vector<vk::ExtensionProperties> extensions = vk::enumerateInstanceExtensionProperties();
-        std::vector<std::string> requiredExtensions = {
-            vk::KHRSurfaceExtensionName,
-            vk::EXTDebugUtilsExtensionName,
-        };
+        std::vector<const char *> requiredExtensions = sf::Vulkan::getGraphicsRequiredInstanceExtensions();
         std::vector<const char *> enabledExtensions;
         for (auto &requiredExtension : requiredExtensions)
         {
             bool found = false;
             for (auto &extension : extensions)
             {
-                if (strcmp(extension.extensionName, requiredExtension.c_str()) == 0)
+                if (strcmp(extension.extensionName, requiredExtension) == 0)
                 {
                     std::cout << "Found extension: " << requiredExtension << std::endl;
                     enabledExtensions.push_back(extension.extensionName);
@@ -84,8 +79,8 @@ int main(int argv, char **args)
 
         vk::SurfaceKHR surface;
         VkSurfaceKHR vkSurface;
-        const VkAllocationCallbacks *allocator = nullptr;
-        window.createVulkanSurface(instance, vkSurface, allocator);
+        if (!window.createVulkanSurface(instance, vkSurface))
+            throw std::runtime_error("Failed to create Vulkan surface");
         surface = vk::SurfaceKHR(vkSurface);
 
         std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
