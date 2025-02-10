@@ -12,12 +12,6 @@ set(CMAKE_CXX_STANDARD 23)
 file(GLOB_RECURSE VKT_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.hpp")
 file(GLOB_RECURSE VKT_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
 
-set(EXE_OPTS "")
-
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    list(APPEND EXE_OPTS WIN32)
-endif()
-
 add_executable(VulkanTest ${EXE_OPTS} ${VKT_SOURCES})
 
 target_link_libraries(VulkanTest PUBLIC Vulkan::Vulkan)

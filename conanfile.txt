@@ -1,0 +1,13 @@
+[requires]
+sfml/[>=2.6.2]
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+sfml/*:graphics=False
+sfml/*:network=False
+
+[layout]
+cmake_layout
