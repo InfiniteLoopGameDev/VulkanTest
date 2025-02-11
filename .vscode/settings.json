@@ -1,4 +1,20 @@
 {
+    "vcpkg.general.enable": true,
+    "vcpkg.target.useStaticLib": false,
+    "cmake.configureArgs": [
+        "-DVCPKG_APPLOCAL_DEPS=ON",
+        "-DX_VCPKG_APPLOCAL_DEPS_INSTALL=ON",
+        "-DVCPKG_TARGET_TRIPLET=x64-windows",
+        "-DVCPKG_MANIFEST_MODE=ON"
+    ],
+    "cmake.configureSettings": {
+        "CMAKE_TOOLCHAIN_FILE": "C:\\Users\\coren\\scoop\\apps\\vcpkg\\current/scripts/buildsystems/vcpkg.cmake"
+    },
+    "vcpkg.target.installDependencies": true,
+    "vcpkg.target.preferSystemLibs": false,
+    "vcpkg.target.useManifest": true,
+    "vcpkg.target.defaultTriplet": "x64-windows",
+    "vcpkg.target.hostTriplet": "x64-windows",
     "cSpell.words": [
         "sfml"
     ],
@@ -65,25 +81,6 @@
         "xmemory": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "xutility": "cpp",
-        "__bit_reference": "cpp",
-        "__hash_table": "cpp",
-        "__locale": "cpp",
-        "__node_handle": "cpp",
-        "__split_buffer": "cpp",
-        "__verbose_abort": "cpp",
-        "bitset": "cpp",
-        "cstdarg": "cpp",
-        "cwctype": "cpp",
-        "deque": "cpp",
-        "execution": "cpp",
-        "mutex": "cpp",
-        "print": "cpp",
-        "queue": "cpp",
-        "ratio": "cpp",
-        "stack": "cpp",
-        "string_view": "cpp",
-        "variant": "cpp"
-    },
-    "cmake.useCMakePresets": "auto"
+        "xutility": "cpp"
+    }
 }

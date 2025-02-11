@@ -1,0 +1,15 @@
+{
+  "name": "vulkantest",
+  "version-string": "1.0.0",
+  "builtin-baseline": "bb1ca2757bca8f8e372a4deb35943828e3b0d155",
+  "dependencies": [
+    {
+      "name": "sfml",
+      "features": [
+        "window"
+      ],
+      "version>=": "2.6.2",
+      "$version": "//TODO: Update this to the 3.0 when available"
+    }
+  ]
+}
