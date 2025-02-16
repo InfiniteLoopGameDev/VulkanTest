@@ -2,31 +2,24 @@
 
 // Enables the built-in dispatch loader
 // Allows to use extensions like VK_EXT_debug_utils
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
 #include "Application.h"
-
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 #ifndef NDEBUG
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
 #endif
 
-Application::Application() = default;
-
-Application::~Application() {
-    instance.destroySurfaceKHR(surface);
-    instance.destroy();
+Application::Application() {
+    initVulkan();
 }
 
-void Application::run() {
-    initVulkan();
+Application::~Application() = default;
 
+void Application::run() {
     mainLoop();
 }
 
 void Application::initVulkan() {
-    VULKAN_HPP_DEFAULT_DISPATCHER.init();
     auto layers = select_layers();
     auto extensions = select_extensions();
     create_instance(layers, extensions);
@@ -48,7 +41,7 @@ void Application::create_instance(const std::vector<std::string> &layers, const 
 
 #ifdef __APPLE__
     // Add VK_KHR_PORTABILITY_subset extension for MoltenVK
-    instanceFlags |= vk::InstanceCreateFlagBits(vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
+    instanceFlags |= vk::raii::InstanceCreateFlagBits(vk::raii::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
 #endif
 
     std::vector<char const *> c_layers;
@@ -67,8 +60,7 @@ void Application::create_instance(const std::vector<std::string> &layers, const 
                                         static_cast<uint32_t>(c_layers.size()), c_layers.data(),
                                         static_cast<uint32_t>(c_extensions.size()), c_extensions.data());
 
-    instance = vk::createInstance(instanceInfo);
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(instance);
+    instance = vk::raii::Instance(context, instanceInfo);
 }
 
 std::vector<std::string> Application::select_layers() {
@@ -79,7 +71,7 @@ std::vector<std::string> Application::select_layers() {
     std::vector<std::string> requestedLayers;
 #endif
 
-    std::vector<vk::LayerProperties> layers = vk::enumerateInstanceLayerProperties();
+    std::vector<vk::LayerProperties> layers = context.enumerateInstanceLayerProperties();
     std::vector<std::string> availableLayers;
     for (auto &requestedLayer: requestedLayers) {
         bool found = false;
@@ -99,7 +91,7 @@ std::vector<std::string> Application::select_layers() {
 }
 
 std::vector<std::string> Application::select_extensions() {
-    std::vector<vk::ExtensionProperties> extensions = vk::enumerateInstanceExtensionProperties();
+    std::vector<vk::ExtensionProperties> extensions = context.enumerateInstanceExtensionProperties();
 
     std::vector<const char *> requiredExtensions = sf::Vulkan::getGraphicsRequiredInstanceExtensions();
 
@@ -108,7 +100,7 @@ std::vector<std::string> Application::select_extensions() {
 #endif
 #ifdef __APPLE__
     // Add VK_KHR_PORTABILITY_subset extension for MoltenVK
-    requiredExtensions.emplace_back(vk::KHRPortabilityEnumerationExtensionName);
+    requiredExtensions.emplace_back(vk::raii::KHRPortabilityEnumerationExtensionName);
 #endif
 
     std::vector<std::string> availableExtensions;
@@ -139,7 +131,7 @@ void Application::setupDebugMessenger() {
                                                          vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
     vk::DebugUtilsMessengerCreateInfoEXT createInfo(createFlags, severityFlags, messageTypeFlags, debugCallback);
 
-    debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo);
+    debugMessenger = vk::raii::DebugUtilsMessengerEXT(instance, createInfo);
 }
 
 VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
@@ -165,7 +157,7 @@ void Application::mainLoop() {
 }
 
 void Application::select_physical_device() {
-    std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+    std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
     if (physicalDevices.empty()) {
         throw std::runtime_error("No physical devices found");
     }
@@ -183,8 +175,8 @@ void Application::select_physical_device() {
 }
 
 void Application::create_surface() {
-    VkSurfaceKHR vkSurface;
-    if (!window.createVulkanSurface(instance, vkSurface))
+    VkSurfaceKHR _vkSurface;
+    if (!window.createVulkanSurface(static_cast<VkInstance>( *instance ), _vkSurface))
         throw std::runtime_error("Failed to create Vulkan surface");
-    surface = vk::SurfaceKHR(vkSurface);
+    surface = vk::raii::SurfaceKHR(instance, _vkSurface);
 }

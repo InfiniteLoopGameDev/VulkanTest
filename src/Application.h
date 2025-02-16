@@ -3,7 +3,7 @@
 
 #include <SFML/Window.hpp>
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 class Application {
 public:
@@ -15,17 +15,18 @@ public:
 
 private:
     sf::WindowBase window = sf::WindowBase(sf::VideoMode(1280, 720), "Triangle", sf::Style::Close);
-    vk::Instance instance;
-    vk::SurfaceKHR surface;
-    vk::DebugUtilsMessengerEXT debugMessenger;
+    vk::raii::Context context;
+    vk::raii::Instance instance = nullptr;
+    vk::raii::SurfaceKHR surface = nullptr;
+    vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
 
     void initVulkan();
 
     void create_instance(const std::vector<std::string> &layers, const std::vector<std::string> &extensions);
 
-    static std::vector<std::string> select_layers();
+    std::vector<std::string> select_layers();
 
-    static std::vector<std::string> select_extensions();
+    std::vector<std::string> select_extensions();
 
     void setupDebugMessenger();
 
