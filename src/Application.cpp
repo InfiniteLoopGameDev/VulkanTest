@@ -10,6 +10,7 @@
 #endif
 
 Application::Application() {
+    window.create(sf::VideoMode(1280, 720), "Triangle", sf::Style::Close);
     initVulkan();
 }
 

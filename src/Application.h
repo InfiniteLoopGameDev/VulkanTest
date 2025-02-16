@@ -14,7 +14,7 @@ public:
     void run();
 
 private:
-    sf::WindowBase window = sf::WindowBase(sf::VideoMode(1280, 720), "Triangle", sf::Style::Close);
+    sf::WindowBase window;
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
     vk::raii::SurfaceKHR surface = nullptr;
