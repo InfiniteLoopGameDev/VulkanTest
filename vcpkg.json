@@ -5,8 +5,7 @@
   "dependencies" : [ {
     "name" : "sfml",
     "features" : [ "window" ],
-    "version>=" : "2.6.2",
-    "$version" : "//TODO: Update this to the 3.0 when available"
+    "version>=" : "3.0.0"
   }, {
     "name" : "vulkan-headers",
     "version>=" : "1.4.304.1"

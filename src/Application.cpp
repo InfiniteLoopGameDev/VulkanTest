@@ -12,7 +12,7 @@
 #endif
 
 Application::Application() {
-    window.create(sf::VideoMode(1280, 720), "Triangle", sf::Style::Close);
+    window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Close);
     initVulkan();
 }
 
@@ -153,10 +153,9 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
 }
 
 void Application::mainLoop() {
-    while (true) {
-        sf::Event event{};
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
+    while (window.isOpen()) {
+        while (const std::optional event = window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
                 return;
             }
         }
@@ -251,9 +250,9 @@ void Application::create_logical_device(const std::vector<const char *> &layers,
     std::set<uint32_t> unique_queue_indices = {indices.graphicsFamily.value(), indices.presentFamily.value() };
 
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    for (uint32_t queue_ḟamily_index : unique_queue_indices) {
+    for (uint32_t queue_family_index : unique_queue_indices) {
         float queuePriority = 1.0f;
-        vk::DeviceQueueCreateInfo queue_create_info(vk::DeviceQueueCreateFlags(), queue_ḟamily_index, 1, &queuePriority);
+        vk::DeviceQueueCreateInfo queue_create_info(vk::DeviceQueueCreateFlags(), queue_family_index, 1, &queuePriority);
         queueCreateInfos.push_back(queue_create_info);
     }
 
