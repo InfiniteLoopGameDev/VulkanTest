@@ -3,8 +3,6 @@
 
 #include "Application.h"
 
-#include <vulkan/vulkan.hpp>
-
 int main(int argv, char **args)
 {
     try

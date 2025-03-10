@@ -1,9 +1,11 @@
 #include <iostream>
+#include <set>
 
 // Enables the built-in dispatch loader
 // Allows to use extensions like VK_EXT_debug_utils
 
 #include "Application.h"
+#include "QueueFamilyIndicies.h"
 
 #ifndef NDEBUG
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
@@ -22,8 +24,20 @@ void Application::run() {
 
 void Application::initVulkan() {
     auto layers = select_layers();
-    auto extensions = select_extensions();
-    create_instance(layers, extensions);
+    std::vector<char const *> c_layers;
+    c_layers.reserve(layers.size());
+    for (auto &layer: layers) {
+        c_layers.push_back(layer.c_str());
+    }
+
+    auto layer_extensions = select_extensions();
+    std::vector<const char *> c_layer_extensions;
+    c_layer_extensions.reserve(layer_extensions.size());
+    for (auto &extension: layer_extensions) {
+        c_layer_extensions.push_back(extension.c_str());
+    }
+
+    create_instance(c_layers, c_layer_extensions);
 
 #ifdef VALIDATION_LAYERS
     setupDebugMessenger();
@@ -31,50 +45,42 @@ void Application::initVulkan() {
 
     create_surface();
 
-    select_physical_device();
+    std::vector<const char *> c_device_extensions = {vk::KHRSwapchainExtensionName};
+    select_physical_device(c_device_extensions);
+
+    create_logical_device(c_layers, c_device_extensions);
 }
 
-void Application::create_instance(const std::vector<std::string> &layers, const std::vector<std::string> &extensions) {
+void Application::create_instance(const std::vector<const char *> &layers, const std::vector<const char *> &extensions) {
+    auto vk_version = vk::enumerateInstanceVersion();
+    std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "." << vk::apiVersionMinor(vk_version) << std::endl;
+
     const vk::ApplicationInfo applicationInfo("Triangle", vk::makeApiVersion(0, 0, 1, 0), "No Engine",
                                               vk::makeApiVersion(0, 0, 1, 0), vk::ApiVersion12);
 
-    auto instanceFlags = vk::InstanceCreateFlags();
+    auto instance_flags = vk::InstanceCreateFlags();
 
 #ifdef __APPLE__
     // Add VK_KHR_PORTABILITY_subset extension for MoltenVK
-    instanceFlags |= vk::raii::InstanceCreateFlagBits(vk::raii::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
+    instance_flags |= vk::raii::InstanceCreateFlagBits(vk::raii::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
 #endif
 
-    std::vector<char const *> c_layers;
-    c_layers.reserve(layers.size());
-    for (auto &layer: layers) {
-        c_layers.push_back(layer.c_str());
-    }
-
-    std::vector<const char *> c_extensions;
-    c_extensions.reserve(extensions.size());
-    for (auto &extension: extensions) {
-        c_extensions.push_back(extension.c_str());
-    }
-
-    vk::InstanceCreateInfo instanceInfo(instanceFlags, &applicationInfo,
-                                        static_cast<uint32_t>(c_layers.size()), c_layers.data(),
-                                        static_cast<uint32_t>(c_extensions.size()), c_extensions.data());
+    vk::InstanceCreateInfo instanceInfo(instance_flags, &applicationInfo, layers, extensions);
 
     instance = vk::raii::Instance(context, instanceInfo);
 }
 
 std::vector<std::string> Application::select_layers() {
 
+    std::vector<std::string> requested_layers;
+
 #ifdef VALIDATION_LAYERS
-    std::vector<std::string> requestedLayers = {"VK_LAYER_KHRONOS_validation"};
-#else
-    std::vector<std::string> requestedLayers;
+    requested_layers.emplace_back("VK_LAYER_KHRONOS_validation");
 #endif
 
     std::vector<vk::LayerProperties> layers = context.enumerateInstanceLayerProperties();
     std::vector<std::string> availableLayers;
-    for (auto &requestedLayer: requestedLayers) {
+    for (auto &requestedLayer: requested_layers) {
         bool found = false;
         for (auto &layer: layers) {
             if (strcmp(layer.layerName, requestedLayer.c_str()) == 0) {
@@ -157,22 +163,107 @@ void Application::mainLoop() {
     }
 }
 
-void Application::select_physical_device() {
+QueueFamilyIndices Application::find_queue_families(vk::raii::PhysicalDevice &physical_device) {
+    QueueFamilyIndices indices;
+
+    std::vector<vk::QueueFamilyProperties> properties = physical_device.getQueueFamilyProperties();
+    int i = 0;
+    for (auto property: properties) {
+        if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
+            indices.graphicsFamily = i;
+        }
+        if (physical_device.getSurfaceSupportKHR(i, *surface)) {
+            indices.presentFamily = i;
+        }
+        if (indices.isComplete()) {
+            break;
+        }
+        i++;
+    }
+
+    return indices;
+}
+
+bool check_device_extensions(const vk::raii::PhysicalDevice& device, std::vector<const char *> &requested_extensions) {
+    std::vector<vk::ExtensionProperties> available_extensions = device.enumerateDeviceExtensionProperties();
+    std::set<std::string> required_extensions(requested_extensions.begin(), requested_extensions.end());
+
+    for (auto &extension: available_extensions) {
+        required_extensions.erase(extension.extensionName);
+    }
+
+    return required_extensions.empty();
+}
+
+int Application::rate_physical_device(vk::raii::PhysicalDevice &physical_device, std::vector<const char *> &requested_extensions) {
+    auto properties = physical_device.getProperties();
+    auto features = physical_device.getFeatures();
+
+    std::cout << "Found Device: " << properties.deviceName << " " << properties.vendorID << " " << properties.deviceID
+              << std::endl;
+    std::cout << "\t" << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
+              << vk::apiVersionMinor(properties.apiVersion) << "." << vk::apiVersionPatch(properties.apiVersion)
+              << std::endl;
+    std::cout << "\t" << "Driver Version: " << vk::apiVersionMajor(properties.driverVersion) << std::endl;
+    std::cout << "\t" << to_string(properties.deviceType) << std::endl;
+
+    int score = 0;
+
+    if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+        score += 1000;
+    }
+
+    score += static_cast<int>(properties.limits.maxImageDimension2D);
+
+    auto queue_families = find_queue_families(physical_device);
+
+    if ( ! ( queue_families.isComplete() & features.geometryShader & check_device_extensions(physical_device, requested_extensions)) ) {
+        return 0;
+    }
+
+    return score;
+}
+
+void Application::select_physical_device(std::vector<const char *> &requested_extensions) {
     std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
     if (physicalDevices.empty()) {
         throw std::runtime_error("No physical devices found");
     }
-    for (auto &physicalDevice: physicalDevices) {
-        vk::PhysicalDeviceProperties properties = physicalDevice.getProperties();
-        auto features = physicalDevice.getFeatures();
-        std::cout << "Device: " << properties.deviceName << " " << properties.vendorID << " " << properties.deviceID
-                  << std::endl;
-        std::cout << "\t" << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
-                  << vk::apiVersionMinor(properties.apiVersion) << "." << vk::apiVersionPatch(properties.apiVersion)
-                  << std::endl;
-        std::cout << "\t" << "Driver Version: " << vk::apiVersionMajor(properties.driverVersion) << std::endl;
-        std::cout << "\t" << to_string(properties.deviceType) << std::endl;
+
+    int max = 0;
+
+    for (auto &item: physicalDevices) {
+        int rating = rate_physical_device(item, requested_extensions);
+        if (rating > max) {
+            physicalDevice = item;
+            max = rating;
+        }
     }
+
+    if (physicalDevice == nullptr)
+        throw std::runtime_error("No suitable physical device found");
+
+    std::cout << "Selected Device: " << physicalDevice.getProperties().deviceName << std::endl;
+}
+
+void Application::create_logical_device(const std::vector<const char *> &layers, const std::vector<const char *> &extensions) {
+    auto indices = find_queue_families(physicalDevice);
+    std::set<uint32_t> unique_queue_indices = {indices.graphicsFamily.value(), indices.presentFamily.value() };
+
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+    for (uint32_t queue_ḟamily_index : unique_queue_indices) {
+        float queuePriority = 1.0f;
+        vk::DeviceQueueCreateInfo queue_create_info(vk::DeviceQueueCreateFlags(), queue_ḟamily_index, 1, &queuePriority);
+        queueCreateInfos.push_back(queue_create_info);
+    }
+
+    auto enabled_features = vk::PhysicalDeviceFeatures();
+    enabled_features.geometryShader = vk::True;
+
+    vk::DeviceCreateInfo device_create_info(vk::DeviceCreateFlags(), queueCreateInfos, layers, extensions,
+                                                   &enabled_features);
+
+    device = vk::raii::Device(physicalDevice, device_create_info);
 }
 
 void Application::create_surface() {
