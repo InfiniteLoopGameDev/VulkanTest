@@ -9,9 +9,9 @@
     "$version" : "//TODO: Update this to the 3.0 when available"
   }, {
     "name" : "vulkan-headers",
-    "version>=" : "1.4.304.0"
+    "version>=" : "1.4.304.1"
   }, {
     "name" : "vulkan-loader",
-    "version>=" : "1.4.304.0"
+    "version>=" : "1.4.304.1"
   } ]
 }
