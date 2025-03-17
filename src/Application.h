@@ -1,20 +1,20 @@
-#ifndef VULKANTEST_APPLICATION_H
-#define VULKANTEST_APPLICATION_H
+#pragma once
 
 #include <SFML/Window.hpp>
 
 #include <vulkan/vulkan_raii.hpp>
+
 #include "QueueFamilyIndicies.h"
 
 class Application {
-public:
+  public:
     Application();
 
     ~Application();
 
     void run();
 
-private:
+  private:
     sf::WindowBase window;
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
@@ -26,7 +26,8 @@ private:
 
     void initVulkan();
 
-    void create_instance(const std::vector<const char *> &layers, const std::vector<const char *> &extensions);
+    void create_instance(const std::vector<const char *> &layers,
+                         const std::vector<const char *> &extensions);
 
     std::vector<std::string> select_layers();
 
@@ -45,12 +46,11 @@ private:
 
     void create_surface();
 
-    void create_logical_device(const std::vector<const char *> &layers, const std::vector<const char *> &extensions);
+    void create_logical_device(const std::vector<const char *> &layers,
+                               const std::vector<const char *> &extensions);
 
-    int rate_physical_device(vk::raii::PhysicalDevice &physical_device, std::vector<const char *> &requested_extensions);
+    int rate_physical_device(vk::raii::PhysicalDevice &physical_device,
+                             std::vector<const char *> &requested_extensions);
 
     QueueFamilyIndices find_queue_families(vk::raii::PhysicalDevice &physical_device);
 };
-
-
-#endif //VULKANTEST_APPLICATION_H
