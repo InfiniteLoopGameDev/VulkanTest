@@ -13,6 +13,6 @@ file(GLOB_RECURSE VKT_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.h")
 
 add_executable(VulkanTest ${VKT_SOURCES})
 
-target_link_libraries(VulkanTest PUBLIC Vulkan::Vulkan)
+target_link_libraries(VulkanTest PRIVATE Vulkan::Headers)
 
 target_link_libraries(VulkanTest PRIVATE SFML::Window)

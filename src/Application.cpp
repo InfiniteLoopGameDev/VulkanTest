@@ -1,7 +1,12 @@
 #include <iostream>
 #include <set>
 
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+
 #include "Application.h"
+
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 #include "utils.h"
 
 #ifndef NDEBUG
@@ -18,6 +23,8 @@ Application::~Application() = default;
 void Application::run() { mainLoop(); }
 
 void Application::initVulkan() {
+    VULKAN_HPP_DEFAULT_DISPATCHER.init();
+
     auto layers = select_layers();
     std::vector<char const *> c_layers;
     c_layers.reserve(layers.size());
@@ -67,6 +74,7 @@ void Application::create_instance(const std::vector<const char *> &layers,
     vk::InstanceCreateInfo instanceInfo(instance_flags, &applicationInfo, layers, extensions);
 
     instance = vk::raii::Instance(context, instanceInfo);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(static_cast<vk::Instance>(*instance));
 }
 
 std::vector<std::string> Application::select_layers() {
@@ -264,6 +272,8 @@ void Application::create_logical_device(const std::vector<const char *> &layers,
                                             extensions, &enabled_features);
 
     device = vk::raii::Device(physicalDevice, device_create_info);
+
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(static_cast<vk::Device>(*device));
 }
 
 void Application::create_surface() {
