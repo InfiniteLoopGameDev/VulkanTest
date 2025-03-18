@@ -4,7 +4,7 @@ project(VulkanTest)
 
 find_package(SFML REQUIRED CONFIG COMPONENTS Window)
 
-find_package(Vulkan REQUIRED)
+find_package(VulkanHeaders REQUIRED CONFIG)
 
 set(CMAKE_CXX_STANDARD 23)
 
