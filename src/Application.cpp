@@ -91,7 +91,7 @@ std::vector<std::string> Application::select_layers() {
         bool found = false;
         for (auto &layer : layers) {
             if (strcmp(layer.layerName, requestedLayer.c_str()) == 0) {
-                availableLayers.push_back(std::string(layer.layerName));
+                availableLayers.push_back(static_cast<const char*>(layer.layerName));
                 std::cout << "Found layer: " << requestedLayer << std::endl;
                 found = true;
             }
@@ -126,7 +126,7 @@ std::vector<std::string> Application::select_extensions() {
         for (auto &extension : extensions) {
             if (strcmp(extension.extensionName, requiredExtension) == 0) {
                 std::cout << "Found extension: " << requiredExtension << std::endl;
-                availableExtensions.push_back(std::string(extension.extensionName));
+                availableExtensions.push_back(static_cast<const char*>(extension.extensionName));
                 found = true;
             }
         }
