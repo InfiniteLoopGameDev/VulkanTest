@@ -8,8 +8,8 @@ struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    QueueFamilyIndices(vk::raii::PhysicalDevice &physical_device, vk::raii::SurfaceKHR &surface) {
-        std::vector<vk::QueueFamilyProperties> properties =
+    QueueFamilyIndices(const vk::raii::PhysicalDevice &physical_device, const vk::raii::SurfaceKHR &surface) {
+        const std::vector<vk::QueueFamilyProperties> properties =
             physical_device.getQueueFamilyProperties();
         int i = 0;
         for (auto property : properties) {
@@ -26,5 +26,5 @@ struct QueueFamilyIndices {
         }
     }
 
-    bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
+    [[nodiscard]] bool isComplete() const { return graphicsFamily.has_value() && presentFamily.has_value(); }
 };

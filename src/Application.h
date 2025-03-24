@@ -24,24 +24,24 @@ class Application {
 
     void initVulkan();
 
-    void create_instance(const std::vector<const char *> &layers,
+    void createInstance(const std::vector<const char *> &layers,
                          const std::vector<const char *> &extensions);
 
-    std::vector<std::string> select_layers();
+    [[nodiscard]] std::vector<std::string> selectLayers() const;
 
-    std::vector<std::string> select_extensions();
+    [[nodiscard]] std::vector<std::string> selectExtensions() const;
 
     void setupDebugMessenger();
 
     void mainLoop();
 
-    void select_physical_device(std::vector<const char *> &requested_extensions);
+    void selectPhysicalDevice(std::vector<const char *> &requested_extensions);
 
-    void create_surface();
+    void createSurface();
 
-    void create_logical_device(const std::vector<const char *> &layers,
+    void createLogicalDevice(const std::vector<const char *> &layers,
                                const std::vector<const char *> &extensions);
 
-    int rate_physical_device(vk::raii::PhysicalDevice &physical_device,
-                             std::vector<const char *> &requested_extensions);
+    int ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
+                             std::vector<const char *> &requested_extensions) const;
 };
