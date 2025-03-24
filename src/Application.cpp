@@ -3,11 +3,11 @@
 
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
-#include "QueueFamilyIndicies.h"
-
 #include "Application.h"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
+#include "QueueFamilyIndicies.h"
 
 #include "utils.h"
 
@@ -28,20 +28,10 @@ void Application::initVulkan() {
     VULKAN_HPP_DEFAULT_DISPATCHER.init();
 
     const auto layers = selectLayers();
-    std::vector<char const *> c_layers;
-    c_layers.reserve(layers.size());
-    for (auto &layer : layers) {
-        c_layers.push_back(layer.c_str());
-    }
 
     const auto layer_extensions = selectExtensions();
-    std::vector<const char *> c_layer_extensions;
-    c_layer_extensions.reserve(layer_extensions.size());
-    for (auto &extension : layer_extensions) {
-        c_layer_extensions.push_back(extension.c_str());
-    }
 
-    createInstance(c_layers, c_layer_extensions);
+    createInstance(layers, layer_extensions);
 
 #ifdef VALIDATION_LAYERS
     setupDebugMessenger();
@@ -49,14 +39,14 @@ void Application::initVulkan() {
 
     createSurface();
 
-    std::vector c_device_extensions = {vk::KHRSwapchainExtensionName};
-    selectPhysicalDevice(c_device_extensions);
+    std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName};
+    selectPhysicalDevice(device_extensions);
 
-    createLogicalDevice(c_layers, c_device_extensions);
+    createLogicalDevice(layers, device_extensions);
 }
 
-void Application::createInstance(const std::vector<const char *> &layers,
-                                  const std::vector<const char *> &extensions) {
+void Application::createInstance(const std::vector<std::string_view> &layers,
+                                 const std::vector<std::string_view> &extensions) {
     const auto vk_version = vk::enumerateInstanceVersion();
     std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "."
         << vk::apiVersionMinor(vk_version) << std::endl;
@@ -73,28 +63,31 @@ void Application::createInstance(const std::vector<const char *> &layers,
         vk::raii::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
 #endif
 
-    const vk::InstanceCreateInfo
-        instance_info(instance_flags, &application_info, layers, extensions);
+    auto c_extensions = to_c_strings(extensions);
+    auto c_layers = to_c_strings(layers);
+
+    const vk::InstanceCreateInfo instance_info(instance_flags, &application_info, c_layers,
+                                               c_extensions);
 
     instance = vk::raii::Instance(context, instance_info);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance);
 }
 
-std::vector<std::string> Application::selectLayers() const {
+std::vector<std::string_view> Application::selectLayers() const {
 
-    std::vector<std::string> requested_layers;
+    std::vector<std::string_view> requested_layers;
 
 #ifdef VALIDATION_LAYERS
     requested_layers.emplace_back("VK_LAYER_KHRONOS_validation");
 #endif
 
     std::vector<vk::LayerProperties> layers = context.enumerateInstanceLayerProperties();
-    std::vector<std::string> available_layers;
+    std::vector<std::string_view> available_layers;
     for (auto &requested_layer : requested_layers) {
         bool found = false;
         for (auto &layer : layers) {
-            if (strcmp(layer.layerName, requested_layer.c_str()) == 0) {
-                available_layers.push_back(static_cast<const char*>(layer.layerName));
+            if (static_cast<std::string_view>(layer.layerName.data()) == requested_layer.data()) {
+                available_layers.push_back(requested_layer);
                 std::cout << "Found layer: " << requested_layer << std::endl;
                 found = true;
             }
@@ -108,12 +101,13 @@ std::vector<std::string> Application::selectLayers() const {
     return available_layers;
 }
 
-std::vector<std::string> Application::selectExtensions() const {
+std::vector<std::string_view> Application::selectExtensions() const {
     std::vector<vk::ExtensionProperties> extensions =
         context.enumerateInstanceExtensionProperties();
 
-    std::vector<const char *> required_extensions =
-        sf::Vulkan::getGraphicsRequiredInstanceExtensions();
+    auto sfml_extensions = sf::Vulkan::getGraphicsRequiredInstanceExtensions();
+    std::vector<std::string_view> required_extensions(sfml_extensions.begin(),
+                                                      sfml_extensions.end());
 
 #ifdef VALIDATION_LAYERS
     required_extensions.push_back(vk::EXTDebugUtilsExtensionName);
@@ -123,13 +117,14 @@ std::vector<std::string> Application::selectExtensions() const {
     required_extensions.push_back(vk::KHRPortabilityEnumerationExtensionName);
 #endif
 
-    std::vector<std::string> available_extensions;
+    std::vector<std::string_view> available_extensions;
     for (const auto &required_extension : required_extensions) {
         bool found = false;
         for (auto &extension : extensions) {
-            if (strcmp(extension.extensionName, required_extension) == 0) {
+            if (static_cast<std::string_view>(extension.extensionName.data()) ==
+                required_extension) {
                 std::cout << "Found extension: " << required_extension << std::endl;
-                available_extensions.push_back(static_cast<const char*>(extension.extensionName));
+                available_extensions.push_back(required_extension);
                 found = true;
             }
         }
@@ -170,7 +165,7 @@ void Application::mainLoop() {
 }
 
 int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
-                                      std::vector<const char *> &requested_extensions) const {
+                                    std::vector<std::string_view> &requested_extensions) const {
     auto properties = physical_device.getProperties();
     auto features = physical_device.getFeatures();
 
@@ -202,7 +197,7 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
     return score;
 }
 
-void Application::selectPhysicalDevice(std::vector<const char *> &requested_extensions) {
+void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_extensions) {
     std::vector<vk::raii::PhysicalDevice> physical_devices = instance.enumeratePhysicalDevices();
     if (physical_devices.empty()) {
         throw std::runtime_error("No physical devices found");
@@ -223,8 +218,8 @@ void Application::selectPhysicalDevice(std::vector<const char *> &requested_exte
     std::cout << "Selected Device: " << physicalDevice.getProperties().deviceName << std::endl;
 }
 
-void Application::createLogicalDevice(const std::vector<const char *> &layers,
-                                        const std::vector<const char *> &extensions) {
+void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
+                                      const std::vector<std::string_view> &extensions) {
     auto indices = QueueFamilyIndices(physicalDevice, surface);
     std::set unique_queue_indices = {indices.graphicsFamily.value(),
                                      indices.presentFamily.value()};
@@ -240,8 +235,11 @@ void Application::createLogicalDevice(const std::vector<const char *> &layers,
     auto enabled_features = vk::PhysicalDeviceFeatures();
     enabled_features.geometryShader = vk::True;
 
-    vk::DeviceCreateInfo device_create_info(vk::DeviceCreateFlags(), queue_create_infos, layers,
-                                            extensions, &enabled_features);
+    auto c_layers = to_c_strings(layers);
+    auto c_extensions = to_c_strings(extensions);
+
+    vk::DeviceCreateInfo device_create_info(vk::DeviceCreateFlags(), queue_create_infos, c_layers,
+                                            c_extensions, &enabled_features);
 
     device = vk::raii::Device(physicalDevice, device_create_info);
 
