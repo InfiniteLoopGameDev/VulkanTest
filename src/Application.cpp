@@ -3,6 +3,8 @@
 
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
+#include "QueueFamilyIndicies.h"
+
 #include "Application.h"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -175,27 +177,6 @@ void Application::mainLoop() {
     }
 }
 
-QueueFamilyIndices Application::find_queue_families(vk::raii::PhysicalDevice &physical_device) {
-    QueueFamilyIndices indices;
-
-    std::vector<vk::QueueFamilyProperties> properties = physical_device.getQueueFamilyProperties();
-    int i = 0;
-    for (auto property : properties) {
-        if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
-            indices.graphicsFamily = i;
-        }
-        if (physical_device.getSurfaceSupportKHR(i, *surface)) {
-            indices.presentFamily = i;
-        }
-        if (indices.isComplete()) {
-            break;
-        }
-        i++;
-    }
-
-    return indices;
-}
-
 int Application::rate_physical_device(vk::raii::PhysicalDevice &physical_device,
                                       std::vector<const char *> &requested_extensions) {
     auto properties = physical_device.getProperties();
@@ -219,7 +200,7 @@ int Application::rate_physical_device(vk::raii::PhysicalDevice &physical_device,
 
     score += static_cast<int>(properties.limits.maxImageDimension2D);
 
-    auto queue_families = find_queue_families(physical_device);
+    auto queue_families = QueueFamilyIndices(physical_device, surface);
 
     if (!(queue_families.isComplete() & features.geometryShader &
           check_device_extensions(physical_device, requested_extensions))) {
@@ -253,7 +234,7 @@ void Application::select_physical_device(std::vector<const char *> &requested_ex
 
 void Application::create_logical_device(const std::vector<const char *> &layers,
                                         const std::vector<const char *> &extensions) {
-    auto indices = find_queue_families(physicalDevice);
+    auto indices = QueueFamilyIndices(physicalDevice, surface);
     std::set<uint32_t> unique_queue_indices = {indices.graphicsFamily.value(),
                                                indices.presentFamily.value()};
 

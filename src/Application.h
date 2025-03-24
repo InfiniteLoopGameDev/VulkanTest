@@ -4,8 +4,6 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
-#include "QueueFamilyIndicies.h"
-
 class Application {
   public:
     Application();
@@ -51,6 +49,4 @@ class Application {
 
     int rate_physical_device(vk::raii::PhysicalDevice &physical_device,
                              std::vector<const char *> &requested_extensions);
-
-    QueueFamilyIndices find_queue_families(vk::raii::PhysicalDevice &physical_device);
 };
