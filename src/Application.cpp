@@ -49,7 +49,7 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
                                  const std::vector<std::string_view> &extensions) {
     const auto vk_version = vk::enumerateInstanceVersion();
     std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "."
-        << vk::apiVersionMinor(vk_version) << std::endl;
+              << vk::apiVersionMinor(vk_version) << std::endl;
 
     constexpr vk::ApplicationInfo application_info("Triangle", vk::makeApiVersion(0, 0, 1, 0),
                                                    "No Engine", vk::makeApiVersion(0, 0, 1, 0),
@@ -94,7 +94,7 @@ std::vector<std::string_view> Application::selectLayers() const {
         }
         if (!found) {
             std::cout << "Requested layer not found: " << std::string(requested_layer)
-                << "; Expect issues" << std::endl;
+                      << "; Expect issues" << std::endl;
         }
     }
 
@@ -110,7 +110,7 @@ std::vector<std::string_view> Application::selectExtensions() const {
                                                       sfml_extensions.end());
 
 #ifdef VALIDATION_LAYERS
-    required_extensions.push_back(vk::EXTDebugUtilsExtensionName);
+    required_extensions.emplace_back(vk::EXTDebugUtilsExtensionName);
 #endif
 #ifdef __APPLE__
     // Add VK_KHR_PORTABILITY_subset extension for MoltenVK
@@ -147,9 +147,8 @@ void Application::setupDebugMessenger() {
         vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
         vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
         vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
-    constexpr vk::DebugUtilsMessengerCreateInfoEXT create_info(
-        create_flags, severity_flags, message_type_flags,
-        debug_callback);
+    constexpr vk::DebugUtilsMessengerCreateInfoEXT create_info(create_flags, severity_flags,
+                                                               message_type_flags, debug_callback);
 
     debugMessenger = vk::raii::DebugUtilsMessengerEXT(instance, create_info);
 }
@@ -170,13 +169,13 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
     auto features = physical_device.getFeatures();
 
     std::cout << "Found Device: " << properties.deviceName << " " << properties.vendorID << " "
-        << properties.deviceID << std::endl;
+              << properties.deviceID << std::endl;
     std::cout << "\t"
-        << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
-        << vk::apiVersionMinor(properties.apiVersion) << "."
-        << vk::apiVersionPatch(properties.apiVersion) << std::endl;
+              << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
+              << vk::apiVersionMinor(properties.apiVersion) << "."
+              << vk::apiVersionPatch(properties.apiVersion) << std::endl;
     std::cout << "\t" << "Driver Version: " << vk::apiVersionMajor(properties.driverVersion)
-        << std::endl;
+              << std::endl;
     std::cout << "\t" << to_string(properties.deviceType) << std::endl;
 
     int score = 0;
@@ -221,8 +220,7 @@ void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
                                       const std::vector<std::string_view> &extensions) {
     auto indices = QueueFamilyIndices(physicalDevice, surface);
-    std::set unique_queue_indices = {indices.graphicsFamily.value(),
-                                     indices.presentFamily.value()};
+    std::set unique_queue_indices = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
     for (uint32_t queue_family_index : unique_queue_indices) {
