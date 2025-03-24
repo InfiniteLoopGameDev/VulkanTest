@@ -7,7 +7,7 @@
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
-#include "utils.h"
+import utils;
 
 #ifndef NDEBUG
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds

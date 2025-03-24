@@ -1,8 +1,12 @@
-#include "utils.h"
-#include <set>
+module;
 
-bool check_device_extensions(const vk::raii::PhysicalDevice &device,
-                             std::vector<const char *> &requested_extensions) {
+#include <set>
+#include <vulkan/vulkan_raii.hpp>
+
+export module utils;
+
+export bool check_device_extensions(const vk::raii::PhysicalDevice &device,
+                                    std::vector<const char *> &requested_extensions) {
     std::vector<vk::ExtensionProperties> available_extensions =
         device.enumerateDeviceExtensionProperties();
     std::set<std::string> required_extensions(requested_extensions.begin(),
