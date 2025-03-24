@@ -33,11 +33,6 @@ class Application {
 
     void setupDebugMessenger();
 
-    static unsigned int
-    debugCallback([[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                  vk::DebugUtilsMessageTypeFlagsEXT messageType,
-                  const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
-
     void mainLoop();
 
     void select_physical_device(std::vector<const char *> &requested_extensions);

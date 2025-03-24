@@ -1,4 +1,6 @@
 #include "utils.h"
+
+#include <iostream>
 #include <set>
 
 bool check_device_extensions(const vk::raii::PhysicalDevice &device,
@@ -13,4 +15,14 @@ bool check_device_extensions(const vk::raii::PhysicalDevice &device,
     }
 
     return required_extensions.empty();
+}
+
+VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(
+    [[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    [[maybe_unused]] vk::DebugUtilsMessageTypeFlagsEXT messageType,
+    const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData, [[maybe_unused]] void *pUserData) {
+
+    std::cerr << "Validation layer: " << pCallbackData->pMessage << std::endl;
+
+    return vk::False;
 }
