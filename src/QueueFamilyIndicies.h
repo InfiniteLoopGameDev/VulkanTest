@@ -30,4 +30,10 @@ struct QueueFamilyIndices {
     [[nodiscard]] bool isComplete() const {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
+
+    [[nodiscard]] bool areUnique() const { return graphicsFamily.value() != presentFamily.value(); }
+
+    [[nodiscard]] std::vector<uint32_t> getQueueFamilies() const {
+        return {graphicsFamily.value(), presentFamily.value()};
+    }
 };

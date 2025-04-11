@@ -8,6 +8,7 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 #include "QueueFamilyIndicies.h"
+#include "SwapChainDetails.h"
 
 #include "utils.h"
 
@@ -43,6 +44,9 @@ void Application::initVulkan() {
     selectPhysicalDevice(device_extensions);
 
     createLogicalDevice(layers, device_extensions);
+
+    createSwapChain();
+    swapChainImageViews = create_image_views(device, swapChainImages, swapChainImageFormat);
 }
 
 void Application::createInstance(const std::vector<std::string_view> &layers,
@@ -174,8 +178,9 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
               << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
               << vk::apiVersionMinor(properties.apiVersion) << "."
               << vk::apiVersionPatch(properties.apiVersion) << std::endl;
-    std::cout << "\t" << "Driver Version: " << vk::apiVersionMajor(properties.driverVersion)
-              << std::endl;
+    std::cout << "\t" << "Driver Version: " << vk::apiVersionMajor(properties.driverVersion) << "."
+              << vk::apiVersionMinor(properties.driverVersion) << "."
+              << vk::apiVersionPatch(properties.driverVersion) << std::endl;
     std::cout << "\t" << to_string(properties.deviceType) << std::endl;
 
     int score = 0;
@@ -188,8 +193,11 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
 
     QueueFamilyIndices queue_families(physical_device, surface);
 
+    SwapChainDetails swap_chain_details(physical_device, surface);
+
     if (!(queue_families.isComplete() && features.geometryShader &&
-          check_device_extensions(physical_device, requested_extensions))) {
+          check_device_extensions(physical_device, requested_extensions) &&
+          swap_chain_details.isValid())) {
         return 0;
     }
 
@@ -219,8 +227,8 @@ void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_
 
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
                                       const std::vector<std::string_view> &extensions) {
-    auto indices = QueueFamilyIndices(physicalDevice, surface);
-    std::set unique_queue_indices = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+    std::vector<uint32_t> indices = QueueFamilyIndices(physicalDevice, surface).getQueueFamilies();
+    std::set unique_queue_indices(indices.begin(), indices.end());
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
     for (uint32_t queue_family_index : unique_queue_indices) {
@@ -249,4 +257,43 @@ void Application::createSurface() {
     if (!window.createVulkanSurface(*instance, vk_surface))
         throw std::runtime_error("Failed to create Vulkan surface");
     surface = vk::raii::SurfaceKHR(instance, vk_surface);
+}
+
+void Application::createSwapChain() {
+    SwapChainDetails swap_chain_details(physicalDevice, surface);
+
+    vk::SurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_details.formats);
+    vk::PresentModeKHR present_mode = choose_present_mode(swap_chain_details.presentModes);
+    vk::Extent2D extent = choose_swap_extent(swap_chain_details.capabilities, window.getSize());
+
+    uint32_t imageCount = swap_chain_details.capabilities.minImageCount + 1;
+    if (swap_chain_details.capabilities.maxImageCount > 0 &&
+        imageCount > swap_chain_details.capabilities.maxImageCount) {
+        imageCount = swap_chain_details.capabilities.maxImageCount;
+    }
+
+    vk::SwapchainCreateInfoKHR swap_chain_create_info(
+        vk::SwapchainCreateFlagsKHR(), surface, imageCount, surface_format.format,
+        surface_format.colorSpace, extent, 1, vk::ImageUsageFlagBits::eColorAttachment);
+
+    swap_chain_create_info.preTransform = swap_chain_details.capabilities.currentTransform;
+    swap_chain_create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+    swap_chain_create_info.presentMode = present_mode;
+    swap_chain_create_info.clipped = true;
+    swap_chain_create_info.oldSwapchain = nullptr;
+
+    if (QueueFamilyIndices indices(physicalDevice, surface); indices.areUnique()) {
+        auto queue_family_indices = indices.getQueueFamilies();
+        swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
+        swap_chain_create_info.queueFamilyIndexCount = queue_family_indices.size();
+        swap_chain_create_info.pQueueFamilyIndices = queue_family_indices.data();
+    } else {
+        swap_chain_create_info.imageSharingMode = vk::SharingMode::eExclusive;
+    }
+
+    swapChain = vk::raii::SwapchainKHR(device, swap_chain_create_info);
+
+    swapChainImageFormat = surface_format.format;
+    swapChainExtent = extent;
+    swapChainImages = swapChain.getImages();
 }

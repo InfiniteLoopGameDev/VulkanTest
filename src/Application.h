@@ -21,6 +21,12 @@ class Application {
     vk::raii::PhysicalDevice physicalDevice = nullptr;
     vk::raii::Device device = nullptr;
     vk::raii::Queue graphicsQueue = nullptr;
+    vk::raii::SwapchainKHR swapChain = nullptr;
+
+    vk::Format swapChainImageFormat;
+    vk::Extent2D swapChainExtent;
+    std::vector<vk::Image> swapChainImages;
+    std::vector<vk::raii::ImageView> swapChainImageViews;
 
     void initVulkan();
 
@@ -44,4 +50,6 @@ class Application {
 
     int ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
                            std::vector<std::string_view> &requested_extensions) const;
+
+    void createSwapChain();
 };
