@@ -8,6 +8,10 @@
     <sourceRoots>
       <file path="$PROJECT_DIR$/src" />
     </sourceRoots>
+    <excludeRoots>
+      <file path="$PROJECT_DIR$/.vs" />
+      <file path="$PROJECT_DIR$/.vscode" />
+    </excludeRoots>
   </component>
   <component name="WestSettings">{}</component>
 </project>
