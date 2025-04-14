@@ -260,20 +260,22 @@ void Application::createSurface() {
 }
 
 void Application::createSwapChain() {
-    SwapChainDetails swap_chain_details(physicalDevice, surface);
+    const SwapChainDetails swap_chain_details(physicalDevice, surface);
 
-    vk::SurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_details.formats);
-    vk::PresentModeKHR present_mode = choose_present_mode(swap_chain_details.presentModes);
-    vk::Extent2D extent = choose_swap_extent(swap_chain_details.capabilities, window.getSize());
+    const vk::SurfaceFormatKHR surface_format =
+        choose_swap_surface_format(swap_chain_details.formats);
+    const vk::PresentModeKHR present_mode = choose_present_mode(swap_chain_details.presentModes);
+    const vk::Extent2D extent =
+        choose_swap_extent(swap_chain_details.capabilities, window.getSize());
 
-    uint32_t imageCount = swap_chain_details.capabilities.minImageCount + 1;
+    uint32_t image_count = swap_chain_details.capabilities.minImageCount + 1;
     if (swap_chain_details.capabilities.maxImageCount > 0 &&
-        imageCount > swap_chain_details.capabilities.maxImageCount) {
-        imageCount = swap_chain_details.capabilities.maxImageCount;
+        image_count > swap_chain_details.capabilities.maxImageCount) {
+        image_count = swap_chain_details.capabilities.maxImageCount;
     }
 
     vk::SwapchainCreateInfoKHR swap_chain_create_info(
-        vk::SwapchainCreateFlagsKHR(), surface, imageCount, surface_format.format,
+        vk::SwapchainCreateFlagsKHR(), surface, image_count, surface_format.format,
         surface_format.colorSpace, extent, 1, vk::ImageUsageFlagBits::eColorAttachment);
 
     swap_chain_create_info.preTransform = swap_chain_details.capabilities.currentTransform;
@@ -282,8 +284,8 @@ void Application::createSwapChain() {
     swap_chain_create_info.clipped = true;
     swap_chain_create_info.oldSwapchain = nullptr;
 
-    if (QueueFamilyIndices indices(physicalDevice, surface); indices.areUnique()) {
-        auto queue_family_indices = indices.getQueueFamilies();
+    if (const QueueFamilyIndices indices(physicalDevice, surface); indices.areUnique()) {
+        const auto queue_family_indices = indices.getQueueFamilies();
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
         swap_chain_create_info.queueFamilyIndexCount = queue_family_indices.size();
         swap_chain_create_info.pQueueFamilyIndices = queue_family_indices.data();

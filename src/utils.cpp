@@ -88,13 +88,12 @@ vk::Extent2D choose_swap_extent(const vk::SurfaceCapabilitiesKHR &capabilities,
                                 const sf::Vector2u &window_size) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
-    } else {
-        const vk::Extent2D extent(std::clamp(window_size.x, capabilities.minImageExtent.width,
-                                             capabilities.maxImageExtent.width),
-                                  std::clamp(window_size.y, capabilities.minImageExtent.height,
-                                             capabilities.maxImageExtent.height));
-        return extent;
     }
+    const vk::Extent2D extent(std::clamp(window_size.x, capabilities.minImageExtent.width,
+                                         capabilities.maxImageExtent.width),
+                              std::clamp(window_size.y, capabilities.minImageExtent.height,
+                                         capabilities.maxImageExtent.height));
+    return extent;
 }
 
 std::vector<vk::raii::ImageView> create_image_views(const vk::raii::Device &device,
@@ -102,7 +101,7 @@ std::vector<vk::raii::ImageView> create_image_views(const vk::raii::Device &devi
                                                     const vk::Format &swap_chain_image_format) {
     std::vector<vk::raii::ImageView> result;
 
-    vk::ImageSubresourceRange subresource_range(
+    constexpr vk::ImageSubresourceRange subresource_range(
         vk::ImageAspectFlags(vk::ImageAspectFlagBits::eColor), 0, 1, 0, 1);
 
     for (auto &image : swap_chain_images) {
@@ -110,7 +109,7 @@ std::vector<vk::raii::ImageView> create_image_views(const vk::raii::Device &devi
                                             vk::ImageViewType::e2D, swap_chain_image_format,
                                             vk::ComponentMapping(), subresource_range);
 
-        result.push_back(vk::raii::ImageView(device, create_info));
+        result.emplace_back(device, create_info);
     }
 
     return result;
