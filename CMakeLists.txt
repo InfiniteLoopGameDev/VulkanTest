@@ -2,7 +2,25 @@ cmake_minimum_required(VERSION 3.25)
 
 project(VulkanTest)
 
+# Download xrepo.cmake if not exists in build directory.
+if (NOT EXISTS "${CMAKE_BINARY_DIR}/xrepo.cmake")
+    message(STATUS "Downloading xrepo.cmake from https://github.com/xmake-io/xrepo-cmake/")
+    # mirror https://cdn.jsdelivr.net/gh/xmake-io/xrepo-cmake@main/xrepo.cmake
+    file(DOWNLOAD "https://raw.githubusercontent.com/xmake-io/xrepo-cmake/main/xrepo.cmake"
+            "${CMAKE_BINARY_DIR}/xrepo.cmake"
+            TLS_VERIFY ON)
+endif ()
+
+# Include xrepo.cmake so we can use xrepo_package function.
+include(${CMAKE_BINARY_DIR}/xrepo.cmake)
+
+xrepo_package("sfml >=3.0.0" MODE debug CONFIGS "vs_runtime='MDd'")
+
+set(SFML_STATIC_LIBRARIES ON)
+
 find_package(SFML REQUIRED CONFIG COMPONENTS Window)
+
+xrepo_package("vulkan-headers >=1.2.0")
 
 find_package(VulkanHeaders REQUIRED CONFIG)
 
