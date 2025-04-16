@@ -2,9 +2,23 @@ cmake_minimum_required(VERSION 3.25)
 
 project(VulkanTest)
 
-find_package(SFML REQUIRED CONFIG COMPONENTS Window)
+set(CPM_USE_LOCAL_PACKAGES ON)
+include(cmake/CPM.cmake)
 
-find_package(VulkanHeaders REQUIRED CONFIG)
+CPMAddPackage(
+        NAME SFML
+        GITHUB_REPOSITORY SFML/SFML
+        GIT_TAG 3.0.0
+        OPTIONS "SFML_BUILD_EXAMPLES OFF" "SFML_BUILD_NETWORK OFF"
+        "SFML_BUILD_AUDIO OFF" "SFML_BUILD_FREETYPE OFF" "SFML_BUILD_GRAPHICS OFF"
+        "SFML_BUILD_WINDOW ON" "SFML_USE_STATIC_STD_LIBS OFF"
+)
+
+CPMAddPackage(
+        NAME Vulkan
+        GITHUB_REPOSITORY KhronosGroup/Vulkan-Headers
+        GIT_TAG vulkan-sdk-1.4.309
+)
 
 add_executable(VulkanTest)
 
