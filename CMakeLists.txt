@@ -20,6 +20,9 @@ CPMAddPackage(
         GIT_TAG vulkan-sdk-1.4.309
 )
 
+include(cmake/FindSlang.cmake) # Custom CMake module to find the Slang compiler on system or through CPM
+include(cmake/SlangUtils.cmake)
+
 add_executable(VulkanTest)
 
 set_property(TARGET VulkanTest PROPERTY CXX_STANDARD 23)
