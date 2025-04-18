@@ -4,7 +4,7 @@ if (CPM_USE_LOCAL_PACKAGES)
     find_package(Vulkan)
     if (DEFINED Vulkan_SLANGC_EXECUTABLE)
         set(SLANG_EXECUTABLE ${Vulkan_SLANGC_EXECUTABLE})
-        message(STATUS "Found Slang: ${Vulkan_SLANGC_EXECUTABLE}")
+        message(STATUS "Found Slang: ${SLANG_EXECUTABLE}")
         return()
     endif ()
     get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
@@ -12,7 +12,7 @@ if (CPM_USE_LOCAL_PACKAGES)
             NAMES slangc
             HINTS ${_Vulkan_LIB_DIR}/../Bin
     )
-    message(STATUS "Found Slang: ${Vulkan_SLANGC_EXECUTABLE}")
+    message(STATUS "Found Slang: ${SLANG_EXECUTABLE}")
     return()
 endif ()
 
