@@ -25,12 +25,23 @@ include(cmake/FindSlang.cmake) # Custom CMake module to find the Slang compiler 
 include(cmake/SlangUtils.cmake)
 
 add_executable(VulkanTest)
+target_compile_features(VulkanTest PUBLIC cxx_std_20)
 
-set_property(TARGET VulkanTest PROPERTY CXX_STANDARD 23)
 
-file(GLOB_RECURSE VKT_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
-file(GLOB_RECURSE VKT_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.h")
-file(GLOB_RECURSE VKT_SLANG_SHADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "shaders/*.slang")
+set(VKT_SOURCES
+        "src/main.cpp"
+        "src/utils.cpp"
+        "src/Application.cpp"
+)
+set(VKT_HEADERS
+        "src/utils.h"
+        "src/Application.h"
+        "src/SwapChainDetails.h"
+        "src/QueueFamilyIndices.h"
+)
+set(VKT_SLANG_SHADERS
+        "shaders/triangle.slang"
+)
 
 target_sources(VulkanTest PRIVATE ${VKT_SOURCES} ${VKT_HEADERS})
 
