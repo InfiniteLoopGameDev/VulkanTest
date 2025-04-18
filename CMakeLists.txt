@@ -27,6 +27,9 @@ include(cmake/SlangUtils.cmake)
 add_executable(VulkanTest)
 target_compile_features(VulkanTest PUBLIC cxx_std_20)
 
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set_target_properties(VulkanTest PROPERTIES WIN32_EXECUTABLE ON)
+endif ()
 
 set(VKT_SOURCES
         "src/main.cpp"
@@ -49,4 +52,4 @@ add_shaders(VulkanTest ${VKT_SLANG_SHADERS})
 
 target_link_libraries(VulkanTest PRIVATE Vulkan::Headers)
 
-target_link_libraries(VulkanTest PRIVATE SFML::Window)
+target_link_libraries(VulkanTest PRIVATE SFML::Window SFML::Main)
