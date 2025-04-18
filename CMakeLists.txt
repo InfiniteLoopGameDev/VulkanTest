@@ -18,6 +18,7 @@ CPMAddPackage(
         NAME Vulkan
         GITHUB_REPOSITORY KhronosGroup/Vulkan-Headers
         GIT_TAG vulkan-sdk-1.4.309
+        OPTIONS "VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=ON"
 )
 
 include(cmake/FindSlang.cmake) # Custom CMake module to find the Slang compiler on system or through CPM

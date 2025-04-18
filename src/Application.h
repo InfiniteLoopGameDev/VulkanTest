@@ -2,6 +2,8 @@
 
 #include <SFML/Window.hpp>
 
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+
 #include <vulkan/vulkan_raii.hpp>
 
 class Application {
@@ -20,13 +22,25 @@ class Application {
     vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
     vk::raii::PhysicalDevice physicalDevice = nullptr;
     vk::raii::Device device = nullptr;
+
+    // Synchronization objects need to be destroyed after the Queue
+    vk::raii::Semaphore imageAvailableSemaphore = nullptr;
+    vk::raii::Semaphore renderFinishedSemaphore = nullptr;
+    vk::raii::Fence inFlightFence = nullptr;
+
     vk::raii::Queue graphicsQueue = nullptr;
     vk::raii::SwapchainKHR swapChain = nullptr;
+    vk::raii::RenderPass renderPass = nullptr;
+    vk::raii::PipelineLayout pipelineLayout = nullptr;
+    vk::raii::Pipeline graphicsPipeline = nullptr;
+    vk::raii::CommandPool commandPool = nullptr;
+    vk::raii::CommandBuffer commandBuffer = nullptr;
 
     vk::Format swapChainImageFormat;
     vk::Extent2D swapChainExtent;
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::raii::ImageView> swapChainImageViews;
+    std::vector<vk::raii::Framebuffer> swapChainFramebuffers;
 
     void initVulkan();
 
@@ -52,4 +66,19 @@ class Application {
                            std::vector<std::string_view> &requested_extensions) const;
 
     void createSwapChain();
+
+    void createRenderPass();
+
+    void createGraphicsPipeline();
+
+    void createFramebuffers();
+
+    void createCommandPool();
+    void createCommandBuffer();
+
+    void recordCommandBuffer(uint32_t image_index);
+
+    void drawFrame();
+
+    void createSyncObjects();
 };
