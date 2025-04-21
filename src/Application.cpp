@@ -332,22 +332,12 @@ void Application::createRenderPass() {
 }
 
 void Application::createGraphicsPipeline() {
-    std::ifstream file("triangle.spv", std::ios::ate | std::ios::binary);
+#include "triangle.spv.h"
 
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file!");
-    }
+    // static_assert(triangle[0] == 0x07230203, "Invalid SPIR-V magic number");
 
-    auto file_size = file.tellg();
-    std::vector<char> shader(file_size);
+    vk::ShaderModuleCreateInfo shader_module_create_info({}, triangle_sizeInBytes, triangle);
 
-    file.seekg(0);
-    file.read(shader.data(), file_size);
-    file.close();
-
-    vk::ShaderModuleCreateInfo shader_module_create_info(
-        vk::ShaderModuleCreateFlags(), file_size,
-        reinterpret_cast<const uint32_t *>(shader.data()));
 
     vk::raii::ShaderModule shader_module(device, shader_module_create_info);
 
