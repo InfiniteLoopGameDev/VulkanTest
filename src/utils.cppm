@@ -121,3 +121,13 @@ export std::vector<vk::raii::ImageView> create_image_views(const vk::raii::Devic
 
     return result;
 }
+
+export constexpr vk::DebugUtilsMessengerCreateInfoEXT
+        debugUtilsMessengerCreateInfo({},
+                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
+                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+                                      debug_callback);
