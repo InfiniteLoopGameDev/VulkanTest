@@ -13,8 +13,6 @@
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
 #endif
 
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-
 Application::Application() {
     window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Close);
     initVulkan();

@@ -2,8 +2,6 @@
 
 #include <SFML/Window.hpp>
 
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-
 #include <vulkan/vulkan_raii.hpp>
 
 class Application {
