@@ -22,6 +22,7 @@ CPMAddPackage(
 )
 
 include(cmake/FindSlang.cmake) # Custom CMake module to find the Slang compiler on system or through CPM
+include(cmake/VulkanModule.cmake) # Custom CMake module to add Vulkan as a C++ 20 module
 include(cmake/SlangUtils.cmake)
 
 add_executable(VulkanTest)
@@ -34,15 +35,18 @@ set_property(TARGET VulkanTest PROPERTY CXX_SCAN_FOR_MODULES ON)
 
 set(VKT_SOURCES
         "src/main.cpp"
-        "src/utils.cpp"
         "src/Application.cpp"
 )
 set(VKT_HEADERS
-        "src/utils.h"
         "src/Application.h"
         "src/SwapChainDetails.h"
         "src/QueueFamilyIndices.h"
 )
+
+set(VKT_MODULES
+        "src/utils.cppm"
+)
+
 set(VKT_SLANG_SHADERS
         "shaders/triangle.slang"
 )
@@ -52,6 +56,6 @@ target_sources(VulkanTest PRIVATE ${VKT_SOURCES} ${VKT_HEADERS})
 
 add_shaders(VulkanTest ${VKT_SLANG_SHADERS})
 
-target_link_libraries(VulkanTest PRIVATE Vulkan::Headers)
+target_link_libraries(VulkanTest PRIVATE VulkanHppModule)
 
 target_link_libraries(VulkanTest PRIVATE SFML::Window SFML::Main)

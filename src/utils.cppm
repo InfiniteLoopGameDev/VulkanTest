@@ -2,9 +2,13 @@ module;
 
 #include <iostream>
 #include <set>
-#include <vulkan/vulkan_raii.hpp>
+
+#include <sfml/System.hpp>
+#include <vulkan/vk_platform.h>
 
 export module utils;
+
+import vulkan_hpp;
 
 export std::vector<const char *> to_c_strings(const std::vector<std::string_view> &strings) {
     std::vector<const char *> c_strings;
