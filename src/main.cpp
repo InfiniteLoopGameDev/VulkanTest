@@ -3,7 +3,7 @@
 
 #include "Application.h"
 
-int main(int argv, char **args) {
+int main([[maybe_unused]] int argv, [[maybe_unused]] char **args) {
     try {
         Application app;
         app.run();

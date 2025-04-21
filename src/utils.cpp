@@ -37,6 +37,7 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL debug_callback(
 }
 
 int rate_surface_format(const vk::SurfaceFormatKHR &surface_format) {
+    // TODO: Try to actually get HDR formats
     int total = 0;
 
     if (surface_format.format == vk::Format::eR16G16B16A16Sfloat) {
@@ -101,13 +102,12 @@ std::vector<vk::raii::ImageView> create_image_views(const vk::raii::Device &devi
                                                     const vk::Format &swap_chain_image_format) {
     std::vector<vk::raii::ImageView> result;
 
-    constexpr vk::ImageSubresourceRange subresource_range(
-        vk::ImageAspectFlags(vk::ImageAspectFlagBits::eColor), 0, 1, 0, 1);
+    constexpr vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
+                                                          1);
 
     for (auto &image : swap_chain_images) {
-        vk::ImageViewCreateInfo create_info(vk::ImageViewCreateFlags(), image,
-                                            vk::ImageViewType::e2D, swap_chain_image_format,
-                                            vk::ComponentMapping(), subresource_range);
+        vk::ImageViewCreateInfo create_info({}, image, vk::ImageViewType::e2D,
+                                            swap_chain_image_format, {}, subresource_range);
 
         result.emplace_back(device, create_info);
     }

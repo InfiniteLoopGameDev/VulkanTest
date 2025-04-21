@@ -4,7 +4,7 @@
 
 #include "Application.h"
 
-#include "QueueFamilyIndicies.h"
+#include "QueueFamilyIndices.h"
 #include "SwapChainDetails.h"
 
 #include "utils.h"
@@ -23,6 +23,8 @@ Application::~Application() = default;
 void Application::run() { mainLoop(); }
 
 void Application::initVulkan() {
+    assert(sf::Vulkan::isAvailable()); // TODO: Proper runtime check of Vulkan availability
+
     const auto layers = selectLayers();
 
     const auto layer_extensions = selectExtensions();
@@ -69,8 +71,7 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
 
 #ifdef __APPLE__
     // Add VK_KHR_PORTABILITY_subset extension for MoltenVK
-    instance_flags |= vk::raii::InstanceCreateFlagBits(
-        vk::raii::InstanceCreateFlagBits::eEnumeratePortabilityKHR);
+    instance_flags |= vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
 #endif
 
     auto c_extensions = to_c_strings(extensions);
@@ -79,7 +80,7 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
     const vk::InstanceCreateInfo instance_info(instance_flags, &application_info, c_layers,
                                                c_extensions);
 
-    instance = vk::raii::Instance(context, instance_info);
+    instance = context.createInstance(instance_info);
 }
 
 std::vector<std::string_view> Application::selectLayers() const {
@@ -147,19 +148,7 @@ std::vector<std::string_view> Application::selectExtensions() const {
 }
 
 void Application::setupDebugMessenger() {
-    constexpr vk::DebugUtilsMessengerCreateFlagsEXT create_flags;
-    constexpr vk::DebugUtilsMessageSeverityFlagsEXT severity_flags =
-        vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-        vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
-    constexpr vk::DebugUtilsMessageTypeFlagsEXT message_type_flags =
-        vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-        vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-        vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
-    constexpr vk::DebugUtilsMessengerCreateInfoEXT create_info(create_flags, severity_flags,
-                                                               message_type_flags, debug_callback);
-
-    debugMessenger = vk::raii::DebugUtilsMessengerEXT(instance, create_info);
+    debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfo);
 }
 
 void Application::mainLoop() {
@@ -219,6 +208,7 @@ void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_
 
     int max = 0;
 
+    // TODO: Use std::max_element with custom comparator
     for (auto &item : physical_devices) {
         if (const int rating = ratePhysicalDevice(item, requested_extensions); rating > max) {
             physicalDevice = item;
@@ -239,22 +229,21 @@ void Application::createLogicalDevice(const std::vector<std::string_view> &layer
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
     for (uint32_t queue_family_index : unique_queue_indices) {
-        float queue_priority = 1.0f;
-        vk::DeviceQueueCreateInfo queue_create_info(vk::DeviceQueueCreateFlags(),
-                                                    queue_family_index, 1, &queue_priority);
+        auto queue_priority = {1.0f};
+        vk::DeviceQueueCreateInfo queue_create_info({}, queue_family_index, queue_priority);
         queue_create_infos.push_back(queue_create_info);
     }
 
-    auto enabled_features = vk::PhysicalDeviceFeatures();
-    enabled_features.geometryShader = vk::True;
+    vk::PhysicalDeviceFeatures enabled_features;
+    enabled_features.geometryShader = true;
 
     auto c_layers = to_c_strings(layers);
     auto c_extensions = to_c_strings(extensions);
 
-    vk::DeviceCreateInfo device_create_info(vk::DeviceCreateFlags(), queue_create_infos, c_layers,
-                                            c_extensions, &enabled_features);
+    vk::DeviceCreateInfo device_create_info({}, queue_create_infos, c_layers, c_extensions,
+                                            &enabled_features);
 
-    device = vk::raii::Device(physicalDevice, device_create_info);
+    device = physicalDevice.createDevice(device_create_info);
 
     graphicsQueue = device.getQueue(indices[0], 0);
 }
@@ -275,32 +264,31 @@ void Application::createSwapChain() {
     const vk::Extent2D extent =
         choose_swap_extent(swap_chain_details.capabilities, window.getSize());
 
-    uint32_t image_count = swap_chain_details.capabilities.minImageCount + 1;
+    uint32_t image_count;
+    image_count = swap_chain_details.capabilities.minImageCount + 1;
     if (swap_chain_details.capabilities.maxImageCount > 0 &&
         image_count > swap_chain_details.capabilities.maxImageCount) {
         image_count = swap_chain_details.capabilities.maxImageCount;
     }
 
     vk::SwapchainCreateInfoKHR swap_chain_create_info(
-        vk::SwapchainCreateFlagsKHR(), surface, image_count, surface_format.format,
-        surface_format.colorSpace, extent, 1, vk::ImageUsageFlagBits::eColorAttachment);
+        {}, surface, image_count, surface_format.format, surface_format.colorSpace, extent, 1,
+        vk::ImageUsageFlagBits::eColorAttachment);
 
     swap_chain_create_info.preTransform = swap_chain_details.capabilities.currentTransform;
     swap_chain_create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
     swap_chain_create_info.presentMode = present_mode;
     swap_chain_create_info.clipped = true;
-    swap_chain_create_info.oldSwapchain = nullptr;
 
     if (const QueueFamilyIndices indices(physicalDevice, surface); indices.areUnique()) {
         const auto queue_family_indices = indices.getQueueFamilies();
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
-        swap_chain_create_info.queueFamilyIndexCount = queue_family_indices.size();
-        swap_chain_create_info.pQueueFamilyIndices = queue_family_indices.data();
+        swap_chain_create_info.setQueueFamilyIndices(queue_family_indices);
     } else {
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eExclusive;
     }
 
-    swapChain = vk::raii::SwapchainKHR(device, swap_chain_create_info);
+    swapChain = device.createSwapchainKHR(swap_chain_create_info);
 
     swapChainImageFormat = surface_format.format;
     swapChainExtent = extent;
@@ -315,18 +303,18 @@ void Application::createRenderPass() {
         vk::ImageLayout::ePresentSrcKHR);
 
     constexpr vk::AttachmentReference color_attachment(0, vk::ImageLayout::eColorAttachmentOptimal);
-    const vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1,
-                                         &color_attachment);
+    const vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, {},
+                                         color_attachment);
 
     const vk::SubpassDependency subpass_dependency(
         vk::SubpassExternal, 0, vk::PipelineStageFlagBits::eColorAttachmentOutput,
         vk::PipelineStageFlagBits::eColorAttachmentOutput, {},
         vk::AccessFlagBits::eColorAttachmentWrite);
 
-    const vk::RenderPassCreateInfo render_pass_info({}, 1, &color_attachments, 1, &subpass, 1,
-                                                    &subpass_dependency);
+    const vk::RenderPassCreateInfo render_pass_info({}, color_attachments, subpass,
+                                                    subpass_dependency);
 
-    renderPass = vk::raii::RenderPass(device, render_pass_info);
+    renderPass = device.createRenderPass(render_pass_info);
 }
 
 void Application::createGraphicsPipeline() {
@@ -336,59 +324,52 @@ void Application::createGraphicsPipeline() {
 
     vk::ShaderModuleCreateInfo shader_module_create_info({}, triangle_sizeInBytes, triangle);
 
+    auto shader_module = device.createShaderModule(shader_module_create_info);
 
-    vk::raii::ShaderModule shader_module(device, shader_module_create_info);
+    vk::PipelineShaderStageCreateInfo vertex_stage_info({}, vk::ShaderStageFlagBits::eVertex,
+                                                        shader_module, "vertexMain");
 
-    vk::PipelineShaderStageCreateInfo vertex_stage_info(vk::PipelineShaderStageCreateFlags(),
-                                                        vk::ShaderStageFlagBits::eVertex,
-                                                        *shader_module, "vertexMain", nullptr);
-
-    vk::PipelineShaderStageCreateInfo fragment_stage_info(vk::PipelineShaderStageCreateFlags(),
-                                                          vk::ShaderStageFlagBits::eFragment,
-                                                          *shader_module, "fragmentMain", nullptr);
+    vk::PipelineShaderStageCreateInfo fragment_stage_info({}, vk::ShaderStageFlagBits::eFragment,
+                                                          shader_module, "fragmentMain");
 
     vk::PipelineShaderStageCreateInfo shader_stages[] = {vertex_stage_info, fragment_stage_info};
 
-    vk::PipelineVertexInputStateCreateInfo vertex_input_info(
-        vk::PipelineVertexInputStateCreateFlags(), 0, nullptr, 0, nullptr);
+    vk::PipelineVertexInputStateCreateInfo vertex_input_info;
 
     vk::PipelineInputAssemblyStateCreateInfo input_assembly_info(
-        vk::PipelineInputAssemblyStateCreateFlags(), vk::PrimitiveTopology::eTriangleList, false);
+        {}, vk::PrimitiveTopology::eTriangleList, false);
 
     vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(swapChainExtent.width),
                           static_cast<float>(swapChainExtent.height), 0.0f, 1.0f);
 
-    vk::Rect2D scissor(vk::Offset2D(), swapChainExtent);
+    vk::Rect2D scissor({}, swapChainExtent);
 
-    vk::PipelineViewportStateCreateInfo viewport_state_info(vk::PipelineViewportStateCreateFlags(),
-                                                            1, &viewport, 1, &scissor);
+    vk::PipelineViewportStateCreateInfo viewport_state_info({}, viewport, scissor);
 
     vk::PipelineRasterizationStateCreateInfo rasterization_info(
         {}, false, false, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack,
         vk::FrontFace::eClockwise, false, 0.0f, 0.0f, 0.0f, 1.0f);
 
     vk::PipelineMultisampleStateCreateInfo multisampling_info({}, vk::SampleCountFlagBits::e1,
-                                                              false, 1.0f, nullptr, false, false);
+                                                              false, 1.0f);
+
+    auto color_write_mask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                            vk::ColorComponentFlagBits::eB;
 
     vk::PipelineColorBlendAttachmentState color_blend_attachment(
         false, vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
-        vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
-        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB);
+        vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd, color_write_mask);
 
     vk::PipelineColorBlendStateCreateInfo color_blend_state(
-        vk::PipelineColorBlendStateCreateFlags(), false, vk::LogicOp::eCopy, 1,
-        &color_blend_attachment, {0.0f, 0.0f, 0.0f, 0.0f});
+        {}, false, vk::LogicOp::eCopy, color_blend_attachment, {0.0f, 0.0f, 0.0f, 0.0f});
 
-    vk::PipelineLayoutCreateInfo pipeline_layout_info{};
-
-    pipelineLayout = vk::raii::PipelineLayout(device, pipeline_layout_info);
+    pipelineLayout = device.createPipelineLayout({});
     vk::GraphicsPipelineCreateInfo graphics_pipeline_create_info(
-        {}, 2, shader_stages, &vertex_input_info, &input_assembly_info, nullptr,
-        &viewport_state_info, &rasterization_info, &multisampling_info, nullptr, &color_blend_state,
-        nullptr, pipelineLayout, renderPass, 0);
+        {}, shader_stages, &vertex_input_info, &input_assembly_info, {}, &viewport_state_info,
+        &rasterization_info, &multisampling_info, {}, &color_blend_state, {}, pipelineLayout,
+        renderPass, 0);
 
-    graphicsPipeline = vk::raii::Pipeline(device, nullptr, graphics_pipeline_create_info);
+    graphicsPipeline = device.createGraphicsPipeline(nullptr, graphics_pipeline_create_info);
 }
 
 void Application::createFramebuffers() {
@@ -397,7 +378,7 @@ void Application::createFramebuffers() {
         vk::ImageView attachments[] = {image_views};
 
         vk::FramebufferCreateInfo framebuffer_info(
-            {}, *renderPass, 1, attachments, swapChainExtent.width, swapChainExtent.height, 1);
+            {}, renderPass, attachments, swapChainExtent.width, swapChainExtent.height, 1);
 
         swapChainFramebuffers.emplace_back(device, framebuffer_info);
     }
@@ -408,25 +389,24 @@ void Application::createCommandPool() {
     vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
                                         queue_family_indices.graphicsFamily.value());
 
-    commandPool = vk::raii::CommandPool(device, pool_info);
+    commandPool = device.createCommandPool(pool_info);
 }
 
 void Application::createCommandBuffer() {
     vk::CommandBufferAllocateInfo command_buffer_allocate_info(commandPool,
                                                                vk::CommandBufferLevel::ePrimary, 1);
 
-    commandBuffer = std::move(vk::raii::CommandBuffers(device, command_buffer_allocate_info)[0]);
+    commandBuffer = std::move(device.allocateCommandBuffers(command_buffer_allocate_info)[0]);
 }
 
 void Application::recordCommandBuffer(uint32_t image_index) {
-    vk::CommandBufferBeginInfo begin_info{};
-    commandBuffer.begin(begin_info);
+    commandBuffer.begin({});
 
     constexpr vk::ClearValue clear_color_value(
         vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
     vk::RenderPassBeginInfo render_pass_info(renderPass, swapChainFramebuffers[image_index],
-                                             vk::Rect2D({}, swapChainExtent), 1,
-                                             &clear_color_value);
+                                             vk::Rect2D({}, swapChainExtent), clear_color_value);
+
     commandBuffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
@@ -442,7 +422,7 @@ void Application::createSyncObjects() {
 
     imageAvailableSemaphore = device.createSemaphore({});
     renderFinishedSemaphore = device.createSemaphore({});
-    inFlightFence = vk::raii::Fence(device, {vk::FenceCreateFlagBits::eSignaled});
+    inFlightFence = device.createFence({vk::FenceCreateFlagBits::eSignaled});
 }
 
 void Application::drawFrame() {
@@ -451,24 +431,21 @@ void Application::drawFrame() {
 
     device.resetFences({inFlightFence});
 
-    auto [result, image_index] =
-        swapChain.acquireNextImage(UINT64_MAX, imageAvailableSemaphore, nullptr);
+    auto [result, image_index] = swapChain.acquireNextImage(UINT64_MAX, imageAvailableSemaphore);
     assert(result == vk::Result::eSuccess);
 
     commandBuffer.reset();
     recordCommandBuffer(image_index);
 
-    const std::array<vk::Semaphore, 1> wait_semaphores{*imageAvailableSemaphore};
-    const std::array<vk::Semaphore, 1> signal_semaphores{*renderFinishedSemaphore};
     constexpr std::array<vk::PipelineStageFlags, 1> wait_stages{
         vk::PipelineStageFlagBits::eColorAttachmentOutput};
-    const std::array<vk::CommandBuffer, 1> command_buffers{*commandBuffer};
 
-    vk::SubmitInfo submit_info(wait_semaphores, wait_stages, command_buffers, signal_semaphores);
+    vk::SubmitInfo submit_info(*imageAvailableSemaphore, wait_stages, *commandBuffer,
+                               *renderFinishedSemaphore);
 
     graphicsQueue.submit(submit_info, inFlightFence);
 
-    vk::PresentInfoKHR present_info(signal_semaphores, *swapChain, image_index);
+    vk::PresentInfoKHR present_info(*renderFinishedSemaphore, *swapChain, image_index);
     result = graphicsQueue.presentKHR(present_info);
     assert(result == vk::Result::eSuccess);
 }

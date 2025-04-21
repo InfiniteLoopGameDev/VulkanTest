@@ -25,3 +25,13 @@ choose_present_mode(const std::vector<vk::PresentModeKHR> &available_present_mod
 [[nodiscard]] std::vector<vk::raii::ImageView>
 create_image_views(const vk::raii::Device &device, const std::vector<vk::Image> &swap_chain_images,
                    const vk::Format &swap_chain_image_format);
+
+constexpr vk::DebugUtilsMessengerCreateInfoEXT
+    debugUtilsMessengerCreateInfo({},
+                                  vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
+                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+                                  vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+                                  debug_callback);
