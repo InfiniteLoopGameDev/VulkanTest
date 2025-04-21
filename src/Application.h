@@ -4,8 +4,6 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
-#include "QueueFamilyIndicies.h"
-
 class Application {
   public:
     Application();
@@ -22,35 +20,63 @@ class Application {
     vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
     vk::raii::PhysicalDevice physicalDevice = nullptr;
     vk::raii::Device device = nullptr;
+
+    // Synchronization objects need to be destroyed after the Queue
+    vk::raii::Semaphore imageAvailableSemaphore = nullptr;
+    vk::raii::Semaphore renderFinishedSemaphore = nullptr;
+    vk::raii::Fence inFlightFence = nullptr;
+
     vk::raii::Queue graphicsQueue = nullptr;
+    vk::raii::SwapchainKHR swapChain = nullptr;
+    vk::raii::RenderPass renderPass = nullptr;
+    vk::raii::PipelineLayout pipelineLayout = nullptr;
+    vk::raii::Pipeline graphicsPipeline = nullptr;
+    vk::raii::CommandPool commandPool = nullptr;
+    vk::raii::CommandBuffer commandBuffer = nullptr;
+
+    vk::Format swapChainImageFormat;
+    vk::Extent2D swapChainExtent;
+    std::vector<vk::Image> swapChainImages;
+    std::vector<vk::raii::ImageView> swapChainImageViews;
+    std::vector<vk::raii::Framebuffer> swapChainFramebuffers;
 
     void initVulkan();
 
-    void create_instance(const std::vector<const char *> &layers,
-                         const std::vector<const char *> &extensions);
+    void createInstance(const std::vector<std::string_view> &layers,
+                        const std::vector<std::string_view> &extensions);
 
-    std::vector<std::string> select_layers();
+    [[nodiscard]] std::vector<std::string_view> selectLayers() const;
 
-    std::vector<std::string> select_extensions();
+    [[nodiscard]] std::vector<std::string_view> selectExtensions() const;
 
     void setupDebugMessenger();
 
-    static unsigned int
-    debugCallback([[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                  vk::DebugUtilsMessageTypeFlagsEXT messageType,
-                  const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
-
     void mainLoop();
 
-    void select_physical_device(std::vector<const char *> &requested_extensions);
+    void selectPhysicalDevice(std::vector<std::string_view> &requested_extensions);
 
-    void create_surface();
+    void createSurface();
 
-    void create_logical_device(const std::vector<const char *> &layers,
-                               const std::vector<const char *> &extensions);
+    void createLogicalDevice(const std::vector<std::string_view> &layers,
+                             const std::vector<std::string_view> &extensions);
 
-    int rate_physical_device(vk::raii::PhysicalDevice &physical_device,
-                             std::vector<const char *> &requested_extensions);
+    int ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
+                           std::vector<std::string_view> &requested_extensions) const;
 
-    QueueFamilyIndices find_queue_families(vk::raii::PhysicalDevice &physical_device);
+    void createSwapChain();
+
+    void createRenderPass();
+
+    void createGraphicsPipeline();
+
+    void createFramebuffers();
+
+    void createCommandPool();
+    void createCommandBuffer();
+
+    void recordCommandBuffer(uint32_t image_index);
+
+    void drawFrame();
+
+    void createSyncObjects();
 };
