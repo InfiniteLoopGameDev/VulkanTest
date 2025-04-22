@@ -19,6 +19,8 @@ class Application {
     int maxFramesInFlight = 2;
     int currentFrame = 0;
 
+    bool framebufferResized = false;
+
     sf::WindowBase window;
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
@@ -73,6 +75,8 @@ class Application {
                            std::vector<std::string_view> &requested_extensions) const;
 
     void createSwapChain();
+
+    void recreateSwapChain();
 
     void createRenderPass();
 

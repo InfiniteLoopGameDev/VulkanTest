@@ -11,7 +11,7 @@
 #endif
 
 Application::Application() {
-    window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Close);
+    window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Default);
     initVulkan();
 }
 
@@ -152,14 +152,23 @@ void Application::setupDebugMessenger() {
 }
 
 void Application::mainLoop() {
+    bool focused = true;
+
     while (window.isOpen()) {
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 device.waitIdle();
                 return;
+            } else if (event->is<sf::Event::Resized>()) {
+                framebufferResized = true;
+            } else if (event->is<sf::Event::FocusGained>()) {
+                focused = true;
+            } else if (event->is<sf::Event::FocusLost>()) {
+                focused = false;
             }
         }
-        drawFrame();
+        if (focused)
+            drawFrame();
     }
 }
 
@@ -293,6 +302,20 @@ void Application::createSwapChain() {
     swapChainImageFormat = surface_format.format;
     swapChainExtent = extent;
     swapChainImages = swapChain.getImages();
+}
+
+void Application::recreateSwapChain() {
+    device.waitIdle();
+
+    swapChainFramebuffers.clear();
+    swapChainImageViews.clear();
+    swapChain = nullptr;
+
+    swapChainDetails = SwapChainDetails(physicalDevice, surface);
+
+    createSwapChain();
+    swapChainImageViews = create_image_views(device, swapChainImages, swapChainImageFormat);
+    createFramebuffers();
 }
 
 void Application::createRenderPass() {
@@ -443,11 +466,16 @@ void Application::drawFrame() {
            device.waitForFences({current_in_flight_fence}, true, UINT64_MAX))
         ;
 
-    device.resetFences({current_in_flight_fence});
-
     auto [result, image_index] =
         swapChain.acquireNextImage(UINT64_MAX, current_image_available_semaphore);
-    assert(result == vk::Result::eSuccess);
+    if (result == vk::Result::eErrorOutOfDateKHR) {
+        recreateSwapChain();
+        return;
+    } else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
+        throw std::runtime_error("Failed to acquire swap chain image");
+    }
+
+    device.resetFences({current_in_flight_fence});
 
     current_command_buffer.reset();
     recordCommandBuffer(current_command_buffer, image_index);
@@ -462,7 +490,13 @@ void Application::drawFrame() {
 
     vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain, image_index);
     result = graphicsQueue.presentKHR(present_info);
-    assert(result == vk::Result::eSuccess);
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR ||
+        framebufferResized) {
+        framebufferResized = false;
+        recreateSwapChain();
+    } else if (result != vk::Result::eSuccess) {
+        throw std::runtime_error("Failed to present swap chain image");
+    }
 
     currentFrame = (currentFrame + 1) % maxFramesInFlight;
 }
