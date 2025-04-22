@@ -55,6 +55,6 @@ target_link_libraries(VulkanTest PRIVATE Vulkan::Headers)
 
 target_link_libraries(VulkanTest PRIVATE SFML::Window)
 
-if (SFML::Main)
+if (TARGET SFML::Main)
     target_link_libraries(VulkanTest PRIVATE SFML::Main)
 endif ()
