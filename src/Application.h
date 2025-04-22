@@ -13,6 +13,9 @@ class Application {
     void run();
 
   private:
+    int maxFramesInFlight = 2;
+    int currentFrame = 0;
+
     sf::WindowBase window;
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
@@ -22,9 +25,9 @@ class Application {
     vk::raii::Device device = nullptr;
 
     // Synchronization objects need to be destroyed after the Queue
-    vk::raii::Semaphore imageAvailableSemaphore = nullptr;
-    vk::raii::Semaphore renderFinishedSemaphore = nullptr;
-    vk::raii::Fence inFlightFence = nullptr;
+    std::vector<vk::raii::Semaphore> imageAvailableSemaphores;
+    std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
+    std::vector<vk::raii::Fence> inFlightFences;
 
     vk::raii::Queue graphicsQueue = nullptr;
     vk::raii::SwapchainKHR swapChain = nullptr;
@@ -32,7 +35,7 @@ class Application {
     vk::raii::PipelineLayout pipelineLayout = nullptr;
     vk::raii::Pipeline graphicsPipeline = nullptr;
     vk::raii::CommandPool commandPool = nullptr;
-    vk::raii::CommandBuffer commandBuffer = nullptr;
+    std::vector<vk::raii::CommandBuffer> commandBuffers;
 
     vk::Format swapChainImageFormat;
     vk::Extent2D swapChainExtent;
@@ -72,9 +75,9 @@ class Application {
     void createFramebuffers();
 
     void createCommandPool();
-    void createCommandBuffer();
+    void createCommandBuffers();
 
-    void recordCommandBuffer(uint32_t image_index);
+    void recordCommandBuffer(vk::raii::CommandBuffer &commandBuffer, uint32_t image_index);
 
     void drawFrame();
 
