@@ -80,7 +80,10 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
     const vk::InstanceCreateInfo instance_info(instance_flags, &application_info, c_layers,
                                                c_extensions);
 
-    instance = context.createInstance(instance_info);
+    vk::StructureChain<vk::InstanceCreateInfo, vk::DebugUtilsMessengerCreateInfoEXT>
+        instance_info_chain(instance_info, debugUtilsMessengerCreateInfo);
+
+    instance = context.createInstance(instance_info_chain.get<vk::InstanceCreateInfo>());
 }
 
 std::vector<std::string_view> Application::selectLayers() const {
