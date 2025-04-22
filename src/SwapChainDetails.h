@@ -8,6 +8,8 @@ struct SwapChainDetails {
     std::vector<vk::SurfaceFormatKHR> formats;
     std::vector<vk::PresentModeKHR> presentModes;
 
+    SwapChainDetails() = default;
+
     SwapChainDetails(const vk::raii::PhysicalDevice &physical_device,
                      const vk::raii::SurfaceKHR &surface) {
         capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);

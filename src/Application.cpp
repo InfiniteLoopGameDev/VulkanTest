@@ -4,9 +4,6 @@
 
 #include "Application.h"
 
-#include "QueueFamilyIndices.h"
-#include "SwapChainDetails.h"
-
 #include "utils.h"
 
 #ifndef NDEBUG
@@ -222,12 +219,15 @@ void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_
     if (physicalDevice == nullptr)
         throw std::runtime_error("No suitable physical device found");
 
+    queueFamilyIndices = QueueFamilyIndices(physicalDevice, surface);
+    swapChainDetails = SwapChainDetails(physicalDevice, surface);
+
     std::cout << "Selected Device: " << physicalDevice.getProperties().deviceName << std::endl;
 }
 
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
                                       const std::vector<std::string_view> &extensions) {
-    std::vector<uint32_t> indices = QueueFamilyIndices(physicalDevice, surface).getQueueFamilies();
+    std::vector<uint32_t> indices = queueFamilyIndices.getQueueFamilies();
     std::set unique_queue_indices(indices.begin(), indices.end());
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
@@ -259,34 +259,31 @@ void Application::createSurface() {
 }
 
 void Application::createSwapChain() {
-    const SwapChainDetails swap_chain_details(physicalDevice, surface);
-
     const vk::SurfaceFormatKHR surface_format =
-        choose_swap_surface_format(swap_chain_details.formats);
-    const vk::PresentModeKHR present_mode = choose_present_mode(swap_chain_details.presentModes);
-    const vk::Extent2D extent =
-        choose_swap_extent(swap_chain_details.capabilities, window.getSize());
+        choose_swap_surface_format(swapChainDetails.formats);
+    const vk::PresentModeKHR present_mode = choose_present_mode(swapChainDetails.presentModes);
+    const vk::Extent2D extent = choose_swap_extent(swapChainDetails.capabilities, window.getSize());
 
     uint32_t image_count;
-    image_count = swap_chain_details.capabilities.minImageCount + 1;
-    if (swap_chain_details.capabilities.maxImageCount > 0 &&
-        image_count > swap_chain_details.capabilities.maxImageCount) {
-        image_count = swap_chain_details.capabilities.maxImageCount;
+    image_count = swapChainDetails.capabilities.minImageCount + 1;
+    if (swapChainDetails.capabilities.maxImageCount > 0 &&
+        image_count > swapChainDetails.capabilities.maxImageCount) {
+        image_count = swapChainDetails.capabilities.maxImageCount;
     }
 
     vk::SwapchainCreateInfoKHR swap_chain_create_info(
         {}, surface, image_count, surface_format.format, surface_format.colorSpace, extent, 1,
         vk::ImageUsageFlagBits::eColorAttachment);
 
-    swap_chain_create_info.preTransform = swap_chain_details.capabilities.currentTransform;
+    swap_chain_create_info.preTransform = swapChainDetails.capabilities.currentTransform;
     swap_chain_create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
     swap_chain_create_info.presentMode = present_mode;
     swap_chain_create_info.clipped = true;
 
-    if (const QueueFamilyIndices indices(physicalDevice, surface); indices.areUnique()) {
-        const auto queue_family_indices = indices.getQueueFamilies();
+    if (queueFamilyIndices.areUnique()) {
+        const auto queue_families = queueFamilyIndices.getQueueFamilies();
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
-        swap_chain_create_info.setQueueFamilyIndices(queue_family_indices);
+        swap_chain_create_info.setQueueFamilyIndices(queue_families);
     } else {
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eExclusive;
     }
@@ -388,9 +385,8 @@ void Application::createFramebuffers() {
 }
 
 void Application::createCommandPool() {
-    QueueFamilyIndices queue_family_indices(physicalDevice, surface);
     vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                                        queue_family_indices.graphicsFamily.value());
+                                        queueFamilyIndices.graphicsFamily.value());
 
     commandPool = device.createCommandPool(pool_info);
 }

@@ -8,6 +8,8 @@ struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
+    QueueFamilyIndices() = default;
+
     QueueFamilyIndices(const vk::raii::PhysicalDevice &physical_device,
                        const vk::raii::SurfaceKHR &surface) {
         const std::vector<vk::QueueFamilyProperties> properties =
