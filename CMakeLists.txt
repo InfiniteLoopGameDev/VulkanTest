@@ -34,6 +34,8 @@ set(VKT_SOURCES
         "src/main.cpp"
         "src/utils.cpp"
         "src/Application.cpp"
+        "src/SwapChainDetails.cpp"
+        "src/QueueFamilyIndices.cpp"
 )
 set(VKT_HEADERS
         "src/utils.h"

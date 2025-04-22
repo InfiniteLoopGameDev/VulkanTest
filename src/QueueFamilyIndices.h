@@ -8,34 +8,14 @@ struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    QueueFamilyIndices() = default;
+    QueueFamilyIndices();
 
     QueueFamilyIndices(const vk::raii::PhysicalDevice &physical_device,
-                       const vk::raii::SurfaceKHR &surface) {
-        const std::vector<vk::QueueFamilyProperties> properties =
-            physical_device.getQueueFamilyProperties();
-        int i = 0;
-        for (auto property : properties) {
-            if (property.queueFlags & vk::QueueFlagBits::eGraphics) {
-                graphicsFamily = i;
-            }
-            if (physical_device.getSurfaceSupportKHR(i, surface)) {
-                presentFamily = i;
-            }
-            if (isComplete()) {
-                break;
-            }
-            i++;
-        }
-    }
+                       const vk::raii::SurfaceKHR &surface);
 
-    [[nodiscard]] bool isComplete() const {
-        return graphicsFamily.has_value() && presentFamily.has_value();
-    }
+    [[nodiscard]] bool isComplete() const;
 
-    [[nodiscard]] bool areUnique() const { return graphicsFamily.value() != presentFamily.value(); }
+    [[nodiscard]] bool areUnique() const;
 
-    [[nodiscard]] std::vector<uint32_t> getQueueFamilies() const {
-        return {graphicsFamily.value(), presentFamily.value()};
-    }
+    [[nodiscard]] std::vector<uint32_t> getQueueFamilies() const;
 };
