@@ -237,23 +237,25 @@ void Application::setupDebugMessenger() {
 }
 
 void Application::mainLoop() {
-    bool focused = true;
 
-    while (window.isOpen()) {
-        while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                device.waitIdle();
-                return;
-            } else if (event->is<sf::Event::Resized>()) {
-                framebufferResized = true;
-            } else if (event->is<sf::Event::FocusGained>()) {
-                focused = true;
-            } else if (event->is<sf::Event::FocusLost>()) {
-                focused = false;
-            }
-        }
-        if (focused)
-            drawFrame();
+    const auto on_resize = [this](const sf::Event::Resized &) { recreateSwapChain(); };
+
+    const auto on_focus_lost = [this](const sf::Event::FocusLost &) {
+        while (not window.waitEvent()->is<sf::Event::FocusGained>())
+            ;
+    };
+
+    const auto on_close = [this](const sf::Event::Closed &) {
+        device.waitIdle();
+        window.close();
+    };
+
+    while (true) {
+        window.handleEvents(on_resize, on_focus_lost, on_close);
+        if (!window.isOpen())
+            break;
+
+        drawFrame();
     }
 }
 
@@ -602,9 +604,7 @@ void Application::drawFrame() {
 
     vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain, image_index);
     result = graphicsQueue.presentKHR(present_info);
-    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR ||
-        framebufferResized) {
-        framebufferResized = false;
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
         recreateSwapChain();
     } else if (result != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to present swap chain image");
