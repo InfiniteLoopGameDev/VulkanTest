@@ -40,7 +40,6 @@ Application::Application() {
 
 Application::~Application() = default;
 
-void Application::run() { mainLoop(); }
 VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
     [[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
     [[maybe_unused]] vk::DebugUtilsMessageTypeFlagsEXT message_type,
@@ -95,6 +94,15 @@ Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_
     }
 
     return vk::PresentModeKHR::eFifo; // Guaranteed to be available
+}
+
+void Application::run() {
+    timer.restart();
+
+    mainLoop();
+
+    const float fps = static_cast<float>(frameCount) / timer.reset().asSeconds();
+    std::cout << "Framerate: " << fps << " FPS" << std::endl;
 }
 
 void Application::initVulkan() {
@@ -602,5 +610,5 @@ void Application::drawFrame() {
         throw std::runtime_error("Failed to present swap chain image");
     }
 
-    currentFrame = (currentFrame + 1) % maxFramesInFlight;
+    currentFrame = ++frameCount % maxFramesInFlight;
 }

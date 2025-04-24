@@ -16,10 +16,12 @@ class Application {
     void run();
 
   private:
-    int maxFramesInFlight = 2;
-    int currentFrame = 0;
+    unsigned int maxFramesInFlight = 2;
+    unsigned int currentFrame = 0;
 
     bool framebufferResized = false;
+    unsigned int frameCount = 0;
+    sf::Clock timer;
 
     sf::WindowBase window;
     vk::raii::Context context;
