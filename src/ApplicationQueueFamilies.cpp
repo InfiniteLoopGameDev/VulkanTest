@@ -1,9 +1,11 @@
-#include "QueueFamilyIndices.h"
+#include "ApplicationQueueFamilies.h"
 
-QueueFamilyIndices::QueueFamilyIndices() = default;
+#include <vulkan/vulkan_raii.hpp>
 
-QueueFamilyIndices::QueueFamilyIndices(const vk::raii::PhysicalDevice &physical_device,
-                                       const vk::raii::SurfaceKHR &surface) {
+ApplicationQueueFamilies::ApplicationQueueFamilies() = default;
+
+ApplicationQueueFamilies::ApplicationQueueFamilies(
+    const vk::raii::PhysicalDevice &physical_device, const vk::raii::SurfaceKHR &surface) {
     const std::vector<vk::QueueFamilyProperties> properties =
         physical_device.getQueueFamilyProperties();
     int i = 0;
@@ -21,16 +23,16 @@ QueueFamilyIndices::QueueFamilyIndices(const vk::raii::PhysicalDevice &physical_
     }
 }
 
-bool QueueFamilyIndices::isComplete() const {
+bool ApplicationQueueFamilies::isComplete() const {
     return graphicsFamily.has_value() && presentFamily.has_value();
 }
 
-bool QueueFamilyIndices::areUnique() const {
+bool ApplicationQueueFamilies::areUnique() const {
     assert(isComplete());
     return graphicsFamily.value() != presentFamily.value();
 }
 
-std::vector<uint32_t> QueueFamilyIndices::getQueueFamilies() const {
+std::vector<uint32_t> ApplicationQueueFamilies::getQueueFamilyIndices() const {
     assert(isComplete());
     return {graphicsFamily.value(), presentFamily.value()};
 }

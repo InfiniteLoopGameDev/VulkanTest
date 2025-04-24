@@ -196,13 +196,9 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
 
     score += static_cast<int>(properties.limits.maxImageDimension2D);
 
-    QueueFamilyIndices queue_families(physical_device, surface);
-
-    SwapChainDetails swap_chain_details(physical_device, surface);
-
-    if (!(queue_families.isComplete() && features.geometryShader &&
-          check_device_extensions(physical_device, requested_extensions) &&
-          swap_chain_details.isValid())) {
+    if (!(ApplicationQueueFamilies(physical_device, surface).isComplete() &&
+          features.geometryShader && checkDeviceExtensions(physical_device, requested_extensions) &&
+          ApplicationSwapChainDetails(physical_device, surface).isValid())) {
         return 0;
     }
 
@@ -228,15 +224,15 @@ void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_
     if (physicalDevice == nullptr)
         throw std::runtime_error("No suitable physical device found");
 
-    queueFamilyIndices = QueueFamilyIndices(physicalDevice, surface);
-    swapChainDetails = SwapChainDetails(physicalDevice, surface);
+    queueFamilies = ApplicationQueueFamilies(physicalDevice, surface);
+    swapChainDetails = ApplicationSwapChainDetails(physicalDevice, surface);
 
     std::cout << "Selected Device: " << physicalDevice.getProperties().deviceName << std::endl;
 }
 
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
                                       const std::vector<std::string_view> &extensions) {
-    std::vector<uint32_t> indices = queueFamilyIndices.getQueueFamilies();
+    std::vector<uint32_t> indices = queueFamilies.getQueueFamilyIndices();
     std::set unique_queue_indices(indices.begin(), indices.end());
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
@@ -289,8 +285,8 @@ void Application::createSwapChain() {
     swap_chain_create_info.presentMode = present_mode;
     swap_chain_create_info.clipped = true;
 
-    if (queueFamilyIndices.areUnique()) {
-        const auto queue_families = queueFamilyIndices.getQueueFamilies();
+    if (queueFamilies.areUnique()) {
+        const auto queue_families = queueFamilies.getQueueFamilyIndices();
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
         swap_chain_create_info.setQueueFamilyIndices(queue_families);
     } else {
@@ -311,7 +307,7 @@ void Application::recreateSwapChain() {
     swapChainImageViews.clear();
     swapChain = nullptr;
 
-    swapChainDetails = SwapChainDetails(physicalDevice, surface);
+    swapChainDetails = ApplicationSwapChainDetails(physicalDevice, surface);
 
     createSwapChain();
     swapChainImageViews = create_image_views(device, swapChainImages, swapChainImageFormat);
@@ -408,8 +404,8 @@ void Application::createFramebuffers() {
 }
 
 void Application::createCommandPool() {
-    vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                                        queueFamilyIndices.graphicsFamily.value());
+    const vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+                                              queueFamilies.graphicsFamily.value());
 
     commandPool = device.createCommandPool(pool_info);
 }

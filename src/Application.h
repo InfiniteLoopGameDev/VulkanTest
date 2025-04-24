@@ -4,8 +4,8 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
-#include "QueueFamilyIndices.h"
-#include "SwapChainDetails.h"
+#include "ApplicationQueueFamilies.h"
+#include "ApplicationSwapChainDetails.h"
 
 class Application {
   public:
@@ -48,8 +48,8 @@ class Application {
     std::vector<vk::raii::ImageView> swapChainImageViews;
     std::vector<vk::raii::Framebuffer> swapChainFramebuffers;
 
-    QueueFamilyIndices queueFamilyIndices;
-    SwapChainDetails swapChainDetails;
+    ApplicationQueueFamilies queueFamilies;
+    ApplicationSwapChainDetails swapChainDetails;
 
     void initVulkan();
 

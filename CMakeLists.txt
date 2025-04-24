@@ -34,14 +34,14 @@ set(VKT_SOURCES
         "src/main.cpp"
         "src/utils.cpp"
         "src/Application.cpp"
-        "src/SwapChainDetails.cpp"
-        "src/QueueFamilyIndices.cpp"
+        "src/ApplicationSwapChainDetails.cpp"
+        "src/ApplicationQueueFamilies.cpp"
 )
 set(VKT_HEADERS
         "src/utils.h"
         "src/Application.h"
-        "src/SwapChainDetails.h"
-        "src/QueueFamilyIndices.h"
+        "src/ApplicationSwapChainDetails.h"
+        "src/ApplicationQueueFamilies.h"
 )
 set(VKT_SLANG_SHADERS
         "shaders/triangle.slang"
