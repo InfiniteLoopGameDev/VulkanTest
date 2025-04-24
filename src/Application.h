@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SFML/Window.hpp>
-
 #include <vulkan/vulkan_raii.hpp>
 
 #include "ApplicationQueueFamilies.h"
@@ -93,15 +92,16 @@ class Application {
 
     void mainLoop();
 
-    void selectPhysicalDevice(std::vector<std::string_view> &requested_extensions);
+    void selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions);
 
     void createSurface();
 
     void createLogicalDevice(const std::vector<std::string_view> &layers,
                              const std::vector<std::string_view> &extensions);
 
-    int ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
-                           std::vector<std::string_view> &requested_extensions) const;
+    [[nodiscard]] int
+    ratePhysicalDevice(const vk::raii::PhysicalDevice &physical_device,
+                       const std::vector<std::string_view> &requested_extensions) const;
 
     void createSwapChain();
 
@@ -118,7 +118,8 @@ class Application {
     void createCommandPool();
     void createCommandBuffers();
 
-    void recordCommandBuffer(vk::raii::CommandBuffer &commandBuffer, uint32_t image_index);
+    void recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,
+                             uint32_t image_index) const;
 
     void drawFrame();
 

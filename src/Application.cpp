@@ -1,6 +1,6 @@
-#include <fstream>
 #include <iostream>
 #include <set>
+#include <unordered_map>
 
 #include "Application.h"
 
@@ -106,7 +106,9 @@ void Application::run() {
 }
 
 void Application::initVulkan() {
-    assert(sf::Vulkan::isAvailable()); // TODO: Proper runtime check of Vulkan availability
+    if (!sf::Vulkan::isAvailable()) {
+        throw std::runtime_error("Vulkan is not available");
+    }
 
     const auto layers = selectLayers();
 
@@ -120,7 +122,7 @@ void Application::initVulkan() {
 
     createSurface();
 
-    std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName};
+    const std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName};
     selectPhysicalDevice(device_extensions);
 
     createLogicalDevice(layers, device_extensions);
@@ -259,10 +261,12 @@ void Application::mainLoop() {
     }
 }
 
-int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
-                                    std::vector<std::string_view> &requested_extensions) const {
-    auto properties = physical_device.getProperties();
-    auto features = physical_device.getFeatures();
+int Application::ratePhysicalDevice(
+    const vk::raii::PhysicalDevice &physical_device,
+    const std::vector<std::string_view> &requested_extensions) const {
+
+    const auto properties = physical_device.getProperties();
+    const auto features = physical_device.getFeatures();
 
     std::cout << "Found Device: " << properties.deviceName << " " << properties.vendorID << " "
               << properties.deviceID << std::endl;
@@ -292,8 +296,9 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
     return score;
 }
 
-void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_extensions) {
-    std::vector<vk::raii::PhysicalDevice> physical_devices = instance.enumeratePhysicalDevices();
+void Application::selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions) {
+    const std::vector<vk::raii::PhysicalDevice> physical_devices =
+        instance.enumeratePhysicalDevices();
     if (physical_devices.empty()) {
         throw std::runtime_error("No physical devices found");
     }
@@ -373,8 +378,7 @@ void Application::createSwapChain() {
                                                          });
     const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
-    uint32_t image_count;
-    image_count = swapChainDetails.capabilities.minImageCount + 1;
+    uint32_t image_count = swapChainDetails.capabilities.minImageCount + 1;
     if (swapChainDetails.capabilities.maxImageCount > 0 &&
         image_count > swapChainDetails.capabilities.maxImageCount) {
         image_count = swapChainDetails.capabilities.maxImageCount;
@@ -443,7 +447,7 @@ void Application::createRenderPass() {
     const vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, {},
                                          color_attachment);
 
-    const vk::SubpassDependency subpass_dependency(
+    constexpr vk::SubpassDependency subpass_dependency(
         vk::SubpassExternal, 0, vk::PipelineStageFlagBits::eColorAttachmentOutput,
         vk::PipelineStageFlagBits::eColorAttachmentOutput, {},
         vk::AccessFlagBits::eColorAttachmentWrite);
@@ -457,7 +461,7 @@ void Application::createRenderPass() {
 void Application::createGraphicsPipeline() {
 #include "triangle.spv.h"
 
-    // static_assert(triangle[0] == 0x07230203, "Invalid SPIR-V magic number");
+    assert((void("Invalid SPIR-V magic number"), triangle[0] == 0x07230203));
 
     vk::ShaderModuleCreateInfo shader_module_create_info({}, triangle_sizeInBytes, triangle);
 
@@ -531,30 +535,31 @@ void Application::createCommandPool() {
 void Application::createCommandBuffers() {
     commandBuffers.reserve(maxFramesInFlight);
 
-    vk::CommandBufferAllocateInfo command_buffer_allocate_info(
+    const vk::CommandBufferAllocateInfo command_buffer_allocate_info(
         commandPool, vk::CommandBufferLevel::ePrimary, maxFramesInFlight);
 
     commandBuffers = device.allocateCommandBuffers(command_buffer_allocate_info);
 }
 
-void Application::recordCommandBuffer(vk::raii::CommandBuffer &commandBuffer,
-                                      uint32_t image_index) {
-    commandBuffer.begin({});
+void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,
+                                      const uint32_t image_index) const {
+    command_buffer.begin({});
 
     constexpr vk::ClearValue clear_color_value(
-        vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
-    vk::RenderPassBeginInfo render_pass_info(renderPass, swapChainFramebuffers[image_index],
-                                             vk::Rect2D({}, swapChainExtent), clear_color_value);
+        vk::ClearColorValue(std::array{0.0f, 0.0f, 0.0f, 1.0f}));
+    const vk::RenderPassBeginInfo render_pass_info(renderPass, swapChainFramebuffers[image_index],
+                                                   vk::Rect2D({}, swapChainExtent),
+                                                   clear_color_value);
 
-    commandBuffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+    command_buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
-    commandBuffer.draw(3, 1, 0, 0);
+    command_buffer.draw(3, 1, 0, 0);
 
-    commandBuffer.endRenderPass();
+    command_buffer.endRenderPass();
 
-    commandBuffer.end();
+    command_buffer.end();
 }
 
 void Application::createSyncObjects() {
@@ -571,10 +576,10 @@ void Application::createSyncObjects() {
 
 void Application::drawFrame() {
 
-    auto &current_command_buffer = commandBuffers[currentFrame];
-    auto &current_image_available_semaphore = imageAvailableSemaphores[currentFrame];
-    auto &current_render_finished_semaphore = renderFinishedSemaphores[currentFrame];
-    auto &current_in_flight_fence = inFlightFences[currentFrame];
+    const auto &current_command_buffer = commandBuffers[currentFrame];
+    const auto &current_image_available_semaphore = imageAvailableSemaphores[currentFrame];
+    const auto &current_render_finished_semaphore = renderFinishedSemaphores[currentFrame];
+    const auto &current_in_flight_fence = inFlightFences[currentFrame];
 
     while (vk::Result::eTimeout ==
            device.waitForFences({current_in_flight_fence}, true, UINT64_MAX))
@@ -582,11 +587,15 @@ void Application::drawFrame() {
 
     auto [result, image_index] =
         swapChain.acquireNextImage(UINT64_MAX, current_image_available_semaphore);
-    if (result == vk::Result::eErrorOutOfDateKHR) {
+    switch (result) {
+    case vk::Result::eErrorOutOfDateKHR:
         recreateSwapChain();
         return;
-    } else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
-        throw std::runtime_error("Failed to acquire swap chain image");
+    case vk::Result::eSuccess:
+    case vk::Result::eSuboptimalKHR:
+        break;
+    default:
+        throw std::runtime_error("Failed to acquire swap chain image: " + vk::to_string(result));
     }
 
     device.resetFences({current_in_flight_fence});
@@ -597,17 +606,23 @@ void Application::drawFrame() {
     constexpr std::array<vk::PipelineStageFlags, 1> wait_stages{
         vk::PipelineStageFlagBits::eColorAttachmentOutput};
 
-    vk::SubmitInfo submit_info(*current_image_available_semaphore, wait_stages,
-                               *current_command_buffer, *current_render_finished_semaphore);
+    const vk::SubmitInfo submit_info(*current_image_available_semaphore, wait_stages,
+                                     *current_command_buffer, *current_render_finished_semaphore);
 
     graphicsQueue.submit(submit_info, current_in_flight_fence);
 
-    vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain, image_index);
+    const vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain,
+                                          image_index);
     result = graphicsQueue.presentKHR(present_info);
-    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
+    switch (result) {
+    case vk::Result::eErrorOutOfDateKHR:
+    case vk::Result::eSuboptimalKHR:
         recreateSwapChain();
-    } else if (result != vk::Result::eSuccess) {
-        throw std::runtime_error("Failed to present swap chain image");
+        break;
+    case vk::Result::eSuccess:
+        break;
+    default:
+        throw std::runtime_error("Failed to present swap chain image: " + vk::to_string(result));
     }
 
     currentFrame = ++frameCount % maxFramesInFlight;
