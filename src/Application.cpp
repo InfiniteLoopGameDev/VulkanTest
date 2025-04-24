@@ -10,6 +10,29 @@
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
 #endif
 
+[[nodiscard]] static int rate_surface_format(const vk::SurfaceFormatKHR &surface_format) {
+    // TODO: Try to actually get HDR formats
+    int total = 0;
+
+    if (surface_format.format == vk::Format::eR16G16B16A16Sfloat) {
+        total += 1000;
+    } else if (surface_format.format == vk::Format::eB8G8R8A8Srgb) {
+        total += 500;
+    } else {
+        return 0;
+    }
+
+    if (surface_format.colorSpace == vk::ColorSpaceKHR::eDisplayP3NonlinearEXT) {
+        total += 1000;
+    } else if (surface_format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+        total += 500;
+    } else {
+        return 0;
+    }
+
+    return total;
+}
+
 Application::Application() {
     window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Default);
     initVulkan();
@@ -18,6 +41,61 @@ Application::Application() {
 Application::~Application() = default;
 
 void Application::run() { mainLoop(); }
+VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
+    [[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    [[maybe_unused]] vk::DebugUtilsMessageTypeFlagsEXT message_type,
+    const vk::DebugUtilsMessengerCallbackDataEXT *callback_data, [[maybe_unused]] void *user_data) {
+
+    std::cerr << "Validation layer: " << callback_data->pMessage << std::endl;
+
+    return vk::False;
+}
+
+bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
+                                        const std::vector<std::string_view> &requested_extensions) {
+    const std::vector<vk::ExtensionProperties> available_extensions =
+        device.enumerateDeviceExtensionProperties();
+    std::set<std::string> required_extensions(requested_extensions.begin(),
+                                              requested_extensions.end());
+
+    for (auto &extension : available_extensions) {
+        required_extensions.erase(extension.extensionName);
+    }
+
+    return required_extensions.empty();
+}
+
+vk::SurfaceFormatKHR
+Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats) {
+    int max = 0;
+    vk::SurfaceFormatKHR best_format;
+
+    for (auto &available_format : available_formats) {
+        if (const int rating = rate_surface_format(available_format); rating > max) {
+            best_format = available_format;
+            max = rating;
+        }
+    }
+
+    return best_format;
+}
+
+vk::PresentModeKHR
+Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
+                               const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
+    std::unordered_map<vk::PresentModeKHR, bool> present_mode_availability;
+
+    for (auto &available_present_mode : available_present_modes) {
+        present_mode_availability[available_present_mode] = true;
+    }
+
+    for (auto &present_mode : present_mode_preferences) {
+        if (present_mode_availability[present_mode])
+            return present_mode;
+    }
+
+    return vk::PresentModeKHR::eFifo; // Guaranteed to be available
+}
 
 void Application::initVulkan() {
     assert(sf::Vulkan::isAvailable()); // TODO: Proper runtime check of Vulkan availability
@@ -40,7 +118,7 @@ void Application::initVulkan() {
     createLogicalDevice(layers, device_extensions);
 
     createSwapChain();
-    swapChainImageViews = create_image_views(device, swapChainImages, swapChainImageFormat);
+    createImageViews();
 
     createRenderPass();
 
@@ -77,8 +155,7 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
     const vk::InstanceCreateInfo instance_info(instance_flags, &application_info, c_layers,
                                                c_extensions);
 
-    vk::StructureChain<vk::InstanceCreateInfo, vk::DebugUtilsMessengerCreateInfoEXT>
-        instance_info_chain(instance_info, debugUtilsMessengerCreateInfo);
+    vk::StructureChain instance_info_chain(instance_info, debug_utils_messenger_create_info);
 
     instance = context.createInstance(instance_info_chain.get<vk::InstanceCreateInfo>());
 }
@@ -148,7 +225,7 @@ std::vector<std::string_view> Application::selectExtensions() const {
 }
 
 void Application::setupDebugMessenger() {
-    debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfo);
+    debugMessenger = instance.createDebugUtilsMessengerEXT(debug_utils_messenger_create_info);
 }
 
 void Application::mainLoop() {
@@ -263,11 +340,28 @@ void Application::createSurface() {
     surface = vk::raii::SurfaceKHR(instance, vk_surface);
 }
 
+vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const {
+    const sf::Vector2u window_size = window.getSize();
+
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        return capabilities.currentExtent;
+    }
+    const vk::Extent2D extent(std::clamp(window_size.x, capabilities.minImageExtent.width,
+                                         capabilities.maxImageExtent.width),
+                              std::clamp(window_size.y, capabilities.minImageExtent.height,
+                                         capabilities.maxImageExtent.height));
+    return extent;
+}
+
 void Application::createSwapChain() {
-    const vk::SurfaceFormatKHR surface_format =
-        choose_swap_surface_format(swapChainDetails.formats);
-    const vk::PresentModeKHR present_mode = choose_present_mode(swapChainDetails.presentModes);
-    const vk::Extent2D extent = choose_swap_extent(swapChainDetails.capabilities, window.getSize());
+    const vk::SurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swapChainDetails.formats);
+    const vk::PresentModeKHR present_mode =
+        choosePresentMode(swapChainDetails.presentModes, {
+                                                             vk::PresentModeKHR::eMailbox,
+                                                             vk::PresentModeKHR::eImmediate,
+                                                             vk::PresentModeKHR::eFifoRelaxed,
+                                                         });
+    const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
     uint32_t image_count;
     image_count = swapChainDetails.capabilities.minImageCount + 1;
@@ -310,8 +404,22 @@ void Application::recreateSwapChain() {
     swapChainDetails = ApplicationSwapChainDetails(physicalDevice, surface);
 
     createSwapChain();
-    swapChainImageViews = create_image_views(device, swapChainImages, swapChainImageFormat);
+    createImageViews();
     createFramebuffers();
+}
+
+void Application::createImageViews() {
+    swapChainImageViews.reserve(swapChainImages.size());
+
+    constexpr vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
+                                                          1);
+
+    for (const auto &image : swapChainImages) {
+        vk::ImageViewCreateInfo create_info({}, image, vk::ImageViewType::e2D, swapChainImageFormat,
+                                            {}, subresource_range);
+
+        swapChainImageViews.emplace_back(device, create_info);
+    }
 }
 
 void Application::createRenderPass() {

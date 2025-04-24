@@ -51,6 +51,34 @@ class Application {
     ApplicationQueueFamilies queueFamilies;
     ApplicationSwapChainDetails swapChainDetails;
 
+    static VKAPI_ATTR vk::Bool32 VKAPI_CALL
+    debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+                  vk::DebugUtilsMessageTypeFlagsEXT message_type,
+                  const vk::DebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data);
+
+    static constexpr auto debug_utils_messenger_create_info = vk::DebugUtilsMessengerCreateInfoEXT(
+        {},
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
+            vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+            vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+            vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+            vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+        debugCallback);
+
+    static bool checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
+                                      const std::vector<std::string_view> &requested_extensions);
+
+    [[nodiscard]] static vk::SurfaceFormatKHR
+    chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats);
+
+    [[nodiscard]] static vk::PresentModeKHR
+    choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
+                      const std::vector<vk::PresentModeKHR> &present_mode_preferences);
+
+    [[nodiscard]] vk::Extent2D
+    chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const;
+
     void initVulkan();
 
     void createInstance(const std::vector<std::string_view> &layers,
@@ -77,6 +105,8 @@ class Application {
     void createSwapChain();
 
     void recreateSwapChain();
+
+    void createImageViews();
 
     void createRenderPass();
 
