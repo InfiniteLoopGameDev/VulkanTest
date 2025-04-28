@@ -25,7 +25,7 @@ function(add_shaders TARGET_NAME)
 
 
         # Build command
-        set(SHADER_COMMAND COMMAND ${SLANG_EXECUTABLE} -target spirv -O${SLANG_OPTIMIZE_LEVEL}
+        set(SHADER_COMMAND COMMAND ${SLANGC_EXECUTABLE} -target spirv -O${SLANG_OPTIMIZE_LEVEL}
                 -fvk-use-entrypoint-name -source-embed-name ${SHADER_NAME}
                 -source-embed-style u32 -o ${SPIRV_DIR}/${SHADER_NAME}.spv
                 ${SHADER_SOURCE})

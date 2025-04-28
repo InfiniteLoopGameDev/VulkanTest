@@ -1,11 +1,8 @@
-#include <fstream>
 #include <iostream>
 #include <set>
+#include <unordered_map>
 
 #include "Application.h"
-
-#include "QueueFamilyIndices.h"
-#include "SwapChainDetails.h"
 
 import utils;
 
@@ -13,23 +10,117 @@ import utils;
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
 #endif
 
+[[nodiscard]] static int rate_surface_format(const vk::SurfaceFormatKHR &surface_format) {
+    int total = 0;
+
+    switch (surface_format.format) {
+    case (vk::Format::eA2B10G10R10UnormPack32):
+        total += 500;
+    case (vk::Format::eB8G8R8A8Unorm):
+        total += 500;
+        break;
+    default:
+        return 0;
+    }
+
+    switch (surface_format.colorSpace) {
+    case (vk::ColorSpaceKHR::eHdr10St2084EXT):
+        // total += 1000;
+    case (vk::ColorSpaceKHR::eSrgbNonlinear):
+        total += 500;
+        break;
+    default:
+        return 0;
+    }
+
+    return total;
+}
+
 Application::Application() {
-    window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Close);
+    window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Default);
     initVulkan();
 }
 
 Application::~Application() = default;
 
-void Application::run() { mainLoop(); }
+VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
+    [[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    [[maybe_unused]] vk::DebugUtilsMessageTypeFlagsEXT message_type,
+    const vk::DebugUtilsMessengerCallbackDataEXT *callback_data, [[maybe_unused]] void *user_data) {
+
+    std::cerr << "Validation layer: " << callback_data->pMessage << std::endl;
+
+    return vk::False;
+}
+
+bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
+                                        const std::vector<std::string_view> &requested_extensions) {
+    const std::vector<vk::ExtensionProperties> available_extensions =
+        device.enumerateDeviceExtensionProperties();
+    std::set<std::string> required_extensions(requested_extensions.begin(),
+                                              requested_extensions.end());
+
+    for (auto &extension : available_extensions) {
+        required_extensions.erase(extension.extensionName);
+    }
+
+    return required_extensions.empty();
+}
+
+vk::SurfaceFormatKHR
+Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats) {
+    int max = 0;
+    vk::SurfaceFormatKHR best_format;
+
+    for (auto &available_format : available_formats) {
+        if (const int rating = rate_surface_format(available_format); rating > max) {
+            best_format = available_format;
+            max = rating;
+        }
+    }
+
+    std::cout << "Selected format: " << vk::to_string(best_format.format) << " "
+              << vk::to_string(best_format.colorSpace) << std::endl;
+
+    return best_format;
+}
+
+vk::PresentModeKHR
+Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
+                               const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
+    std::unordered_map<vk::PresentModeKHR, bool> present_mode_availability;
+
+    for (auto &available_present_mode : available_present_modes) {
+        present_mode_availability[available_present_mode] = true;
+    }
+
+    for (auto &present_mode : present_mode_preferences) {
+        if (present_mode_availability[present_mode])
+            return present_mode;
+    }
+
+    return vk::PresentModeKHR::eFifo; // Guaranteed to be available
+}
+
+void Application::run() {
+    timer.restart();
+
+    mainLoop();
+
+    const float fps = static_cast<float>(frameCount) / timer.reset().asSeconds();
+    std::cout << "Framerate: " << fps << " FPS" << std::endl;
+}
 
 void Application::initVulkan() {
-    assert(sf::Vulkan::isAvailable()); // TODO: Proper runtime check of Vulkan availability
+    if (!sf::Vulkan::isAvailable()) {
+        throw std::runtime_error("Vulkan is not available");
+    }
 
     const auto layers = selectLayers();
 
-    const auto layer_extensions = selectExtensions();
+    const auto instance_extensions = selectExtensions();
 
-    createInstance(layers, layer_extensions);
+    createInstance(layers, instance_extensions);
 
 #ifdef VALIDATION_LAYERS
     setupDebugMessenger();
@@ -37,13 +128,14 @@ void Application::initVulkan() {
 
     createSurface();
 
-    std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName};
+    const std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName,
+                                                             vk::EXTHdrMetadataExtensionName};
     selectPhysicalDevice(device_extensions);
 
     createLogicalDevice(layers, device_extensions);
 
     createSwapChain();
-    swapChainImageViews = create_image_views(device, swapChainImages, swapChainImageFormat);
+    createImageViews();
 
     createRenderPass();
 
@@ -52,7 +144,7 @@ void Application::initVulkan() {
     createFramebuffers();
 
     createCommandPool();
-    createCommandBuffer();
+    createCommandBuffers();
 
     createSyncObjects();
 }
@@ -80,7 +172,14 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
     const vk::InstanceCreateInfo instance_info(instance_flags, &application_info, c_layers,
                                                c_extensions);
 
-    instance = context.createInstance(instance_info);
+    vk::StructureChain instance_info_chain(instance_info
+#ifdef VALIDATION_LAYERS
+                                           ,
+                                           debug_utils_messenger_create_info
+#endif
+    );
+
+    instance = context.createInstance(instance_info_chain.get<vk::InstanceCreateInfo>());
 }
 
 std::vector<std::string_view> Application::selectLayers() const {
@@ -119,6 +218,8 @@ std::vector<std::string_view> Application::selectExtensions() const {
     std::vector<std::string_view> required_extensions(sfml_extensions.begin(),
                                                       sfml_extensions.end());
 
+    required_extensions.emplace_back(vk::EXTSwapchainColorSpaceExtensionName);
+
 #ifdef VALIDATION_LAYERS
     required_extensions.emplace_back(vk::EXTDebugUtilsExtensionName);
 #endif
@@ -148,25 +249,38 @@ std::vector<std::string_view> Application::selectExtensions() const {
 }
 
 void Application::setupDebugMessenger() {
-    debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfo);
+    debugMessenger = instance.createDebugUtilsMessengerEXT(debug_utils_messenger_create_info);
 }
 
 void Application::mainLoop() {
-    while (window.isOpen()) {
-        while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                device.waitIdle();
-                return;
-            }
-        }
+
+    const auto on_resize = [this](const sf::Event::Resized &) { recreateSwapChain(); };
+
+    const auto on_focus_lost = [this](const sf::Event::FocusLost &) {
+        while (not window.waitEvent()->is<sf::Event::FocusGained>())
+            ;
+    };
+
+    const auto on_close = [this](const sf::Event::Closed &) {
+        device.waitIdle();
+        window.close();
+    };
+
+    while (true) {
+        window.handleEvents(on_resize, on_focus_lost, on_close);
+        if (!window.isOpen())
+            break;
+
         drawFrame();
     }
 }
 
-int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
-                                    std::vector<std::string_view> &requested_extensions) const {
-    auto properties = physical_device.getProperties();
-    auto features = physical_device.getFeatures();
+int Application::ratePhysicalDevice(
+    const vk::raii::PhysicalDevice &physical_device,
+    const std::vector<std::string_view> &requested_extensions) const {
+
+    const auto properties = physical_device.getProperties();
+    const auto features = physical_device.getFeatures();
 
     std::cout << "Found Device: " << properties.deviceName << " " << properties.vendorID << " "
               << properties.deviceID << std::endl;
@@ -187,21 +301,18 @@ int Application::ratePhysicalDevice(vk::raii::PhysicalDevice &physical_device,
 
     score += static_cast<int>(properties.limits.maxImageDimension2D);
 
-    QueueFamilyIndices queue_families(physical_device, surface);
-
-    SwapChainDetails swap_chain_details(physical_device, surface);
-
-    if (!(queue_families.isComplete() && features.geometryShader &&
-          check_device_extensions(physical_device, requested_extensions) &&
-          swap_chain_details.isValid())) {
+    if (!(ApplicationQueueFamilies(physical_device, surface).isComplete() &&
+          features.geometryShader && checkDeviceExtensions(physical_device, requested_extensions) &&
+          ApplicationSwapChainDetails(physical_device, surface).isValid())) {
         return 0;
     }
 
     return score;
 }
 
-void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_extensions) {
-    std::vector<vk::raii::PhysicalDevice> physical_devices = instance.enumeratePhysicalDevices();
+void Application::selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions) {
+    const std::vector<vk::raii::PhysicalDevice> physical_devices =
+        instance.enumeratePhysicalDevices();
     if (physical_devices.empty()) {
         throw std::runtime_error("No physical devices found");
     }
@@ -219,12 +330,15 @@ void Application::selectPhysicalDevice(std::vector<std::string_view> &requested_
     if (physicalDevice == nullptr)
         throw std::runtime_error("No suitable physical device found");
 
+    queueFamilies = ApplicationQueueFamilies(physicalDevice, surface);
+    swapChainDetails = ApplicationSwapChainDetails(physicalDevice, surface);
+
     std::cout << "Selected Device: " << physicalDevice.getProperties().deviceName << std::endl;
 }
 
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
                                       const std::vector<std::string_view> &extensions) {
-    std::vector<uint32_t> indices = QueueFamilyIndices(physicalDevice, surface).getQueueFamilies();
+    std::vector<uint32_t> indices = queueFamilies.getQueueFamilyIndices();
     std::set unique_queue_indices(indices.begin(), indices.end());
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
@@ -234,8 +348,15 @@ void Application::createLogicalDevice(const std::vector<std::string_view> &layer
         queue_create_infos.push_back(queue_create_info);
     }
 
-    vk::PhysicalDeviceFeatures enabled_features;
-    enabled_features.geometryShader = true;
+    constexpr auto enabled_features = [] {
+        vk::PhysicalDeviceFeatures features;
+        features.geometryShader = true;
+#ifdef NDEBUG
+        features.robustBufferAccess = false;
+#endif
+
+        return features;
+    }();
 
     auto c_layers = to_c_strings(layers);
     auto c_extensions = to_c_strings(extensions);
@@ -255,35 +376,49 @@ void Application::createSurface() {
     surface = vk::raii::SurfaceKHR(instance, vk_surface);
 }
 
+vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const {
+    const sf::Vector2u window_size = window.getSize();
+
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        return capabilities.currentExtent;
+    }
+    const vk::Extent2D extent(std::clamp(window_size.x, capabilities.minImageExtent.width,
+                                         capabilities.maxImageExtent.width),
+                              std::clamp(window_size.y, capabilities.minImageExtent.height,
+                                         capabilities.maxImageExtent.height));
+    return extent;
+}
+
 void Application::createSwapChain() {
-    const SwapChainDetails swap_chain_details(physicalDevice, surface);
+    const vk::SurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swapChainDetails.formats);
+    const vk::PresentModeKHR present_mode =
+        choosePresentMode(swapChainDetails.presentModes, {
+                                                             vk::PresentModeKHR::eMailbox,
+                                                             vk::PresentModeKHR::eFifoRelaxed,
+                                                             vk::PresentModeKHR::eFifo,
+                                                         });
 
-    const vk::SurfaceFormatKHR surface_format =
-        choose_swap_surface_format(swap_chain_details.formats);
-    const vk::PresentModeKHR present_mode = choose_present_mode(swap_chain_details.presentModes);
-    const vk::Extent2D extent =
-        choose_swap_extent(swap_chain_details.capabilities, window.getSize());
+    const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
-    uint32_t image_count;
-    image_count = swap_chain_details.capabilities.minImageCount + 1;
-    if (swap_chain_details.capabilities.maxImageCount > 0 &&
-        image_count > swap_chain_details.capabilities.maxImageCount) {
-        image_count = swap_chain_details.capabilities.maxImageCount;
+    uint32_t image_count = swapChainDetails.capabilities.minImageCount + 1;
+    if (swapChainDetails.capabilities.maxImageCount > 0 &&
+        image_count > swapChainDetails.capabilities.maxImageCount) {
+        image_count = swapChainDetails.capabilities.maxImageCount;
     }
 
     vk::SwapchainCreateInfoKHR swap_chain_create_info(
         {}, surface, image_count, surface_format.format, surface_format.colorSpace, extent, 1,
         vk::ImageUsageFlagBits::eColorAttachment);
 
-    swap_chain_create_info.preTransform = swap_chain_details.capabilities.currentTransform;
+    swap_chain_create_info.preTransform = swapChainDetails.capabilities.currentTransform;
     swap_chain_create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
     swap_chain_create_info.presentMode = present_mode;
     swap_chain_create_info.clipped = true;
 
-    if (const QueueFamilyIndices indices(physicalDevice, surface); indices.areUnique()) {
-        const auto queue_family_indices = indices.getQueueFamilies();
+    if (queueFamilies.areUnique()) {
+        const auto queue_families = queueFamilies.getQueueFamilyIndices();
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
-        swap_chain_create_info.setQueueFamilyIndices(queue_family_indices);
+        swap_chain_create_info.setQueueFamilyIndices(queue_families);
     } else {
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eExclusive;
     }
@@ -293,6 +428,38 @@ void Application::createSwapChain() {
     swapChainImageFormat = surface_format.format;
     swapChainExtent = extent;
     swapChainImages = swapChain.getImages();
+
+    device.setHdrMetadataEXT(*swapChain,
+                             vk::HdrMetadataEXT({0.708, 0.292}, {0.170, 0.797}, {0.131, 0.046},
+                                                {0.3127, 0.3290}, 400, 0, 400, 400));
+}
+
+void Application::recreateSwapChain() {
+    device.waitIdle();
+
+    swapChainFramebuffers.clear();
+    swapChainImageViews.clear();
+    swapChain = nullptr;
+
+    swapChainDetails = ApplicationSwapChainDetails(physicalDevice, surface);
+
+    createSwapChain();
+    createImageViews();
+    createFramebuffers();
+}
+
+void Application::createImageViews() {
+    swapChainImageViews.reserve(swapChainImages.size());
+
+    constexpr vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
+                                                          1);
+
+    for (const auto &image : swapChainImages) {
+        vk::ImageViewCreateInfo create_info({}, image, vk::ImageViewType::e2D, swapChainImageFormat,
+                                            {}, subresource_range);
+
+        swapChainImageViews.emplace_back(device, create_info);
+    }
 }
 
 void Application::createRenderPass() {
@@ -306,7 +473,7 @@ void Application::createRenderPass() {
     const vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, {},
                                          color_attachment);
 
-    const vk::SubpassDependency subpass_dependency(
+    constexpr vk::SubpassDependency subpass_dependency(
         vk::SubpassExternal, 0, vk::PipelineStageFlagBits::eColorAttachmentOutput,
         vk::PipelineStageFlagBits::eColorAttachmentOutput, {},
         vk::AccessFlagBits::eColorAttachmentWrite);
@@ -320,7 +487,7 @@ void Application::createRenderPass() {
 void Application::createGraphicsPipeline() {
 #include "triangle.spv.h"
 
-    // static_assert(triangle[0] == 0x07230203, "Invalid SPIR-V magic number");
+    assert((void("Invalid SPIR-V magic number"), triangle[0] == 0x07230203));
 
     vk::ShaderModuleCreateInfo shader_module_create_info({}, triangle_sizeInBytes, triangle);
 
@@ -385,67 +552,105 @@ void Application::createFramebuffers() {
 }
 
 void Application::createCommandPool() {
-    QueueFamilyIndices queue_family_indices(physicalDevice, surface);
-    vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                                        queue_family_indices.graphicsFamily.value());
+    const vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+                                              queueFamilies.graphicsFamily.value());
 
     commandPool = device.createCommandPool(pool_info);
 }
 
-void Application::createCommandBuffer() {
-    vk::CommandBufferAllocateInfo command_buffer_allocate_info(commandPool,
-                                                               vk::CommandBufferLevel::ePrimary, 1);
+void Application::createCommandBuffers() {
+    commandBuffers.reserve(maxFramesInFlight);
 
-    commandBuffer = std::move(device.allocateCommandBuffers(command_buffer_allocate_info)[0]);
+    const vk::CommandBufferAllocateInfo command_buffer_allocate_info(
+        commandPool, vk::CommandBufferLevel::ePrimary, maxFramesInFlight);
+
+    commandBuffers = device.allocateCommandBuffers(command_buffer_allocate_info);
 }
 
-void Application::recordCommandBuffer(uint32_t image_index) {
-    commandBuffer.begin({});
+void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,
+                                      const uint32_t image_index) const {
+    command_buffer.begin(
+        vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
     constexpr vk::ClearValue clear_color_value(
-        vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
-    vk::RenderPassBeginInfo render_pass_info(renderPass, swapChainFramebuffers[image_index],
-                                             vk::Rect2D({}, swapChainExtent), clear_color_value);
+        vk::ClearColorValue(std::array{0.0f, 0.0f, 0.0f, 1.0f}));
+    const vk::RenderPassBeginInfo render_pass_info(renderPass, swapChainFramebuffers[image_index],
+                                                   vk::Rect2D({}, swapChainExtent),
+                                                   clear_color_value);
 
-    commandBuffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+    command_buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
-    commandBuffer.draw(3, 1, 0, 0);
+    command_buffer.draw(3, 1, 0, 0);
 
-    commandBuffer.endRenderPass();
+    command_buffer.endRenderPass();
 
-    commandBuffer.end();
+    command_buffer.end();
 }
 
 void Application::createSyncObjects() {
+    imageAvailableSemaphores.reserve(maxFramesInFlight);
+    renderFinishedSemaphores.reserve(maxFramesInFlight);
+    inFlightFences.reserve(maxFramesInFlight);
 
-    imageAvailableSemaphore = device.createSemaphore({});
-    renderFinishedSemaphore = device.createSemaphore({});
-    inFlightFence = device.createFence({vk::FenceCreateFlagBits::eSignaled});
+    for (size_t i = 0; i < maxFramesInFlight; i++) {
+        imageAvailableSemaphores.emplace_back(device.createSemaphore({}));
+        renderFinishedSemaphores.emplace_back(device.createSemaphore({}));
+        inFlightFences.emplace_back(device.createFence({vk::FenceCreateFlagBits::eSignaled}));
+    }
 }
 
 void Application::drawFrame() {
-    while (vk::Result::eTimeout == device.waitForFences({inFlightFence}, true, UINT64_MAX))
+
+    const auto &current_command_buffer = commandBuffers[currentFrame];
+    const auto &current_image_available_semaphore = imageAvailableSemaphores[currentFrame];
+    const auto &current_render_finished_semaphore = renderFinishedSemaphores[currentFrame];
+    const auto &current_in_flight_fence = inFlightFences[currentFrame];
+
+    while (vk::Result::eTimeout ==
+           device.waitForFences({current_in_flight_fence}, true, UINT64_MAX))
         ;
 
-    device.resetFences({inFlightFence});
+    auto [result, image_index] =
+        swapChain.acquireNextImage(UINT64_MAX, current_image_available_semaphore);
+    switch (result) {
+    case vk::Result::eErrorOutOfDateKHR:
+        recreateSwapChain();
+        return;
+    case vk::Result::eSuccess:
+    case vk::Result::eSuboptimalKHR:
+        break;
+    default:
+        throw std::runtime_error("Failed to acquire swap chain image: " + vk::to_string(result));
+    }
 
-    auto [result, image_index] = swapChain.acquireNextImage(UINT64_MAX, imageAvailableSemaphore);
-    assert(result == vk::Result::eSuccess);
+    device.resetFences({current_in_flight_fence});
 
-    commandBuffer.reset();
-    recordCommandBuffer(image_index);
+    current_command_buffer.reset();
+    recordCommandBuffer(current_command_buffer, image_index);
 
     constexpr std::array<vk::PipelineStageFlags, 1> wait_stages{
         vk::PipelineStageFlagBits::eColorAttachmentOutput};
 
-    vk::SubmitInfo submit_info(*imageAvailableSemaphore, wait_stages, *commandBuffer,
-                               *renderFinishedSemaphore);
+    const vk::SubmitInfo submit_info(*current_image_available_semaphore, wait_stages,
+                                     *current_command_buffer, *current_render_finished_semaphore);
 
-    graphicsQueue.submit(submit_info, inFlightFence);
+    graphicsQueue.submit(submit_info, current_in_flight_fence);
 
-    vk::PresentInfoKHR present_info(*renderFinishedSemaphore, *swapChain, image_index);
+    const vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain,
+                                          image_index);
     result = graphicsQueue.presentKHR(present_info);
-    assert(result == vk::Result::eSuccess);
+    switch (result) {
+    case vk::Result::eErrorOutOfDateKHR:
+    case vk::Result::eSuboptimalKHR:
+        recreateSwapChain();
+        break;
+    case vk::Result::eSuccess:
+        break;
+    default:
+        throw std::runtime_error("Failed to present swap chain image: " + vk::to_string(result));
+    }
+
+    currentFrame = ++frameCount % maxFramesInFlight;
 }

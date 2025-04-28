@@ -2,10 +2,9 @@ cmake_minimum_required(VERSION 3.28)
 
 project(VulkanTest)
 
-set(CPM_USE_LOCAL_PACKAGES ON)
 include(cmake/CPM.cmake)
 
-CPMAddPackage(
+CPMFindPackage(
         NAME SFML
         GITHUB_REPOSITORY SFML/SFML
         GIT_TAG 3.0.0
@@ -14,7 +13,7 @@ CPMAddPackage(
         "SFML_BUILD_WINDOW ON" "SFML_USE_STATIC_STD_LIBS OFF"
 )
 
-CPMAddPackage(
+CPMFindPackage(
         NAME Vulkan
         GITHUB_REPOSITORY KhronosGroup/Vulkan-Headers
         GIT_TAG vulkan-sdk-1.4.309
@@ -36,11 +35,13 @@ set_property(TARGET VulkanTest PROPERTY CXX_SCAN_FOR_MODULES ON)
 set(VKT_SOURCES
         "src/main.cpp"
         "src/Application.cpp"
+        "src/ApplicationSwapChainDetails.cpp"
+        "src/ApplicationQueueFamilies.cpp"
 )
 set(VKT_HEADERS
         "src/Application.h"
-        "src/SwapChainDetails.h"
-        "src/QueueFamilyIndices.h"
+        "src/ApplicationSwapChainDetails.h"
+        "src/ApplicationQueueFamilies.h"
 )
 
 set(VKT_MODULES
@@ -58,4 +59,8 @@ add_shaders(VulkanTest ${VKT_SLANG_SHADERS})
 
 target_link_libraries(VulkanTest PRIVATE VulkanHppModule)
 
-target_link_libraries(VulkanTest PRIVATE SFML::Window SFML::Main)
+target_link_libraries(VulkanTest PRIVATE SFML::Window)
+
+if (TARGET SFML::Main)
+    target_link_libraries(VulkanTest PRIVATE SFML::Main)
+endif ()

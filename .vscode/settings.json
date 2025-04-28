@@ -1,11 +1,4 @@
 {
-    "vcpkg.general.enable": true,
-    "vcpkg.target.installDependencies": true,
-    "vcpkg.target.preferSystemLibs": false,
-    "vcpkg.target.useManifest": true,
-    "vcpkg.target.defaultTriplet": "x64-windows",
-    "vcpkg.target.hostTriplet": "x64-windows",
-    "vcpkg.target.useStaticLib": false,
     "cSpell.words": [
         "sfml"
     ],
@@ -82,13 +75,6 @@
         "unordered_set": "cpp",
         "variant": "cpp"
     },
-    "cmake.configureArgs": [
-        "-DVCPKG_MANIFEST_MODE=ON",
-        "-DVCPKG_TARGET_TRIPLET=x64-windows"
-    ],
-    "cmake.configureSettings": {
-        "CMAKE_TOOLCHAIN_FILE": "C:\\Users\\coren\\scoop\\apps\\vcpkg\\current/scripts/buildsystems/vcpkg.cmake"
-    },
-    "C_Cpp.default.cppStandard": "c++23",
-    "C_Cpp.default.cStandard": "c23"
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.cStandard": "c17"
 }
