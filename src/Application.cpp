@@ -11,22 +11,25 @@
 #endif
 
 [[nodiscard]] static int rate_surface_format(const vk::SurfaceFormatKHR &surface_format) {
-    // TODO: Try to actually get HDR formats
     int total = 0;
 
-    if (surface_format.format == vk::Format::eR16G16B16A16Sfloat) {
-        total += 1000;
-    } else if (surface_format.format == vk::Format::eB8G8R8A8Srgb) {
+    switch (surface_format.format) {
+    case (vk::Format::eA2B10G10R10UnormPack32):
         total += 500;
-    } else {
+    case (vk::Format::eB8G8R8A8Unorm):
+        total += 500;
+        break;
+    default:
         return 0;
     }
 
-    if (surface_format.colorSpace == vk::ColorSpaceKHR::eDisplayP3NonlinearEXT) {
-        total += 1000;
-    } else if (surface_format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+    switch (surface_format.colorSpace) {
+    case (vk::ColorSpaceKHR::eHdr10St2084EXT):
+        // total += 1000;
+    case (vk::ColorSpaceKHR::eSrgbNonlinear):
         total += 500;
-    } else {
+        break;
+    default:
         return 0;
     }
 
@@ -76,6 +79,9 @@ Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &av
         }
     }
 
+    std::cout << "Selected format: " << vk::to_string(best_format.format) << " "
+              << vk::to_string(best_format.colorSpace) << std::endl;
+
     return best_format;
 }
 
@@ -112,9 +118,9 @@ void Application::initVulkan() {
 
     const auto layers = selectLayers();
 
-    const auto layer_extensions = selectExtensions();
+    const auto instance_extensions = selectExtensions();
 
-    createInstance(layers, layer_extensions);
+    createInstance(layers, instance_extensions);
 
 #ifdef VALIDATION_LAYERS
     setupDebugMessenger();
@@ -122,7 +128,8 @@ void Application::initVulkan() {
 
     createSurface();
 
-    const std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName};
+    const std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName,
+                                                             vk::EXTHdrMetadataExtensionName};
     selectPhysicalDevice(device_extensions);
 
     createLogicalDevice(layers, device_extensions);
@@ -205,6 +212,8 @@ std::vector<std::string_view> Application::selectExtensions() const {
     auto sfml_extensions = sf::Vulkan::getGraphicsRequiredInstanceExtensions();
     std::vector<std::string_view> required_extensions(sfml_extensions.begin(),
                                                       sfml_extensions.end());
+
+    required_extensions.emplace_back(vk::EXTSwapchainColorSpaceExtensionName);
 
 #ifdef VALIDATION_LAYERS
     required_extensions.emplace_back(vk::EXTDebugUtilsExtensionName);
@@ -406,6 +415,10 @@ void Application::createSwapChain() {
     swapChainImageFormat = surface_format.format;
     swapChainExtent = extent;
     swapChainImages = swapChain.getImages();
+
+    device.setHdrMetadataEXT(*swapChain,
+                             vk::HdrMetadataEXT({0.708, 0.292}, {0.170, 0.797}, {0.131, 0.046},
+                                                {0.3127, 0.3290}, 400, 0, 400, 400));
 }
 
 void Application::recreateSwapChain() {
