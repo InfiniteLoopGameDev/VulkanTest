@@ -172,7 +172,12 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
     const vk::InstanceCreateInfo instance_info(instance_flags, &application_info, c_layers,
                                                c_extensions);
 
-    vk::StructureChain instance_info_chain(instance_info, debug_utils_messenger_create_info);
+    vk::StructureChain instance_info_chain(instance_info
+#ifdef VALIDATION_LAYERS
+                                           ,
+                                           debug_utils_messenger_create_info
+#endif
+    );
 
     instance = context.createInstance(instance_info_chain.get<vk::InstanceCreateInfo>());
 }
@@ -343,8 +348,15 @@ void Application::createLogicalDevice(const std::vector<std::string_view> &layer
         queue_create_infos.push_back(queue_create_info);
     }
 
-    vk::PhysicalDeviceFeatures enabled_features;
-    enabled_features.geometryShader = true;
+    constexpr auto enabled_features = [] {
+        vk::PhysicalDeviceFeatures features;
+        features.geometryShader = true;
+#ifdef NDEBUG
+        features.robustBufferAccess = false;
+#endif
+
+        return features;
+    }();
 
     auto c_layers = to_c_strings(layers);
     auto c_extensions = to_c_strings(extensions);
@@ -382,9 +394,10 @@ void Application::createSwapChain() {
     const vk::PresentModeKHR present_mode =
         choosePresentMode(swapChainDetails.presentModes, {
                                                              vk::PresentModeKHR::eMailbox,
-                                                             vk::PresentModeKHR::eImmediate,
                                                              vk::PresentModeKHR::eFifoRelaxed,
+                                                             vk::PresentModeKHR::eFifo,
                                                          });
+
     const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
     uint32_t image_count = swapChainDetails.capabilities.minImageCount + 1;
@@ -556,7 +569,8 @@ void Application::createCommandBuffers() {
 
 void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,
                                       const uint32_t image_index) const {
-    command_buffer.begin({});
+    command_buffer.begin(
+        vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
     constexpr vk::ClearValue clear_color_value(
         vk::ClearColorValue(std::array{0.0f, 0.0f, 0.0f, 1.0f}));

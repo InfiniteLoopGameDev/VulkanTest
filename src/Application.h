@@ -56,15 +56,14 @@ class Application {
                   vk::DebugUtilsMessageTypeFlagsEXT message_type,
                   const vk::DebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data);
 
-    static constexpr auto debug_utils_messenger_create_info = vk::DebugUtilsMessengerCreateInfoEXT(
+    static constexpr vk::DebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         {},
-        vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-            vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
             vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
         vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
             vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
             vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-        debugCallback);
+        debugCallback};
 
     static bool checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
                                       const std::vector<std::string_view> &requested_extensions);
