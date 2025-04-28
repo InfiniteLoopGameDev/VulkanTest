@@ -1,7 +1,8 @@
-#include <exception>
-#include <iostream>
+import std;
 
-#include "Application.h"
+#include <cstdlib>
+
+import vkt.Application;
 
 int main([[maybe_unused]] int argv, [[maybe_unused]] char **args) {
     try {
