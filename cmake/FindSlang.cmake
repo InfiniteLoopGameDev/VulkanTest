@@ -1,31 +1,37 @@
 # Try to find the slangc executable on the system already
-# Vulkan ships it, CPM does not check for it
-find_package(Vulkan)
-if (DEFINED Vulkan_SLANGC_EXECUTABLE)
-    set(SLANG_EXECUTABLE ${Vulkan_SLANGC_EXECUTABLE})
-    message(STATUS "Found Slang: ${SLANGC_EXECUTABLE}")
-    return()
+# Vulkan SDK ships with it, useful if using system libraries
+if (NOT Vulkan_FOUND)
+    find_package(Vulkan)
 endif ()
-get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
-find_program(SLANGC_EXECUTABLE
-        NAMES slangc
-        HINTS ${_Vulkan_LIB_DIR}/../Bin
-)
+
+if (DEFINED Vulkan::slangc)
+    set(SLANG_EXECUTABLE Vulkan::slangc)
+else ()
+    # CMake currently does not provide a target for slangc, so we have to find it manually
+    get_target_property(_Vulkan_LIB_DIR Vulkan::glslc LOCATION)
+    get_filename_component(_Vulkan_LIB_DIR ${_Vulkan_LIB_DIR} DIRECTORY)
+    find_program(SLANGC_EXECUTABLE
+            NAMES slangc
+            PATHS ${_Vulkan_LIB_DIR}
+    )
+endif ()
+
 if (SLANGC_EXECUTABLE)
-    message(STATUS "Found Slang: ${SLANGC_EXECUTABLE}")
+    message(STATUS "Found Slang (Vulkan SDK): ${SLANGC_EXECUTABLE}")
     return()
 endif ()
 
-find_package(slang QUIET)
+
+# If not found, use CPM to download and build slang from source
+CPMFindPackage(
+        NAME slang
+        GITHUB_REPOSITORY shader-slang/slang
+        GIT_TAG vulkan-sdk-1.4.321.0
+        OPTIONS "SLANG_ENABLE_TESTS OFF" "SLANG_ENABLE_EXAMPLES OFF" "SLANG_ENABLE_GFX OFF" "SLANG_ENABLE_SLANGRT OFF" "SLANG_USE_SYSTEM_VULKAN_HEADERS ON"
+)
+# Quite hacky way to get the slangc executable from the build directory
+# Has to be globed because the build directory is based on platform and version
 if (NOT SLANGC_EXECUTABLE)
-    CPMAddPackage(
-            NAME slang
-            GITHUB_REPOSITORY shader-slang/slang
-            GIT_TAG vulkan-sdk-1.4.321.0
-            OPTIONS "SLANG_ENABLE_TESTS OFF" "SLANG_ENABLE_EXAMPLES OFF" "SLANG_ENABLE_GFX OFF" "SLANG_ENABLE_SLANGRT OFF" "SLANG_USE_SYSTEM_VULKAN_HEADERS ON"
-    )
-    # Quite hacky way to get the slangc executable from the build directory
-    # Has to be globed because the build directory is based on platform and version
     file(GLOB SLANG_BINARIES "${slang_BINARY_DIR}/slang*/bin")
     find_program(SLANGC_EXECUTABLE
             NAMES slangc

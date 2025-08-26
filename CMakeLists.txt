@@ -11,7 +11,7 @@ CPMFindPackage(
         GITHUB_REPOSITORY SFML/SFML
         GIT_TAG 3.0.1
         OPTIONS "SFML_BUILD_NETWORK OFF" "SFML_BUILD_AUDIO OFF" "SFML_BUILD_GRAPHICS OFF"
-        "SFML_BUILD_WINDOW ON" "SFML_USE_STATIC_STD_LIBS OFF" "SFML_USE_SYSTEM_DEPS ON"
+        "SFML_BUILD_WINDOW ON" "SFML_USE_SYSTEM_DEPS ON"
 )
 
 CPMFindPackage(
@@ -57,4 +57,13 @@ target_link_libraries(VulkanTest PRIVATE SFML::Window)
 
 if (TARGET SFML::Main)
     target_link_libraries(VulkanTest PRIVATE SFML::Main)
+endif ()
+
+if (BUILD_SHARED_LIBS)
+    add_custom_command(TARGET VulkanTest POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:VulkanTest>
+            $<TARGET_FILE_DIR:VulkanTest>
+            COMMAND_EXPAND_LISTS
+    )
 endif ()
