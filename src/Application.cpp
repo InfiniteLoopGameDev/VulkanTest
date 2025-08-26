@@ -14,9 +14,9 @@
     int total = 0;
 
     switch (surface_format.format) {
-    case (vk::Format::eA2B10G10R10UnormPack32):
+    case vk::Format::eA2B10G10R10UnormPack32:
         total += 500;
-    case (vk::Format::eB8G8R8A8Unorm):
+    case vk::Format::eB8G8R8A8Unorm:
         total += 500;
         break;
     default:
@@ -24,9 +24,9 @@
     }
 
     switch (surface_format.colorSpace) {
-    case (vk::ColorSpaceKHR::eHdr10St2084EXT):
+    case vk::ColorSpaceKHR::eHdr10St2084EXT:
         // total += 1000;
-    case (vk::ColorSpaceKHR::eSrgbNonlinear):
+    case vk::ColorSpaceKHR::eSrgbNonlinear:
         total += 500;
         break;
     default:
@@ -53,8 +53,9 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
     return vk::False;
 }
 
-bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
-                                        const std::vector<std::string_view> &requested_extensions) {
+bool Application::checkDeviceExtensions(
+    const vk::raii::PhysicalDevice &device,
+    const std::vector<std::string_view> &requested_extensions) {
     const std::vector<vk::ExtensionProperties> available_extensions =
         device.enumerateDeviceExtensionProperties();
     std::set<std::string> required_extensions(requested_extensions.begin(),
@@ -67,8 +68,8 @@ bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
     return required_extensions.empty();
 }
 
-vk::SurfaceFormatKHR
-Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats) {
+vk::SurfaceFormatKHR Application::chooseSwapSurfaceFormat(
+    const std::vector<vk::SurfaceFormatKHR> &available_formats) {
     int max = 0;
     vk::SurfaceFormatKHR best_format;
 
@@ -87,7 +88,7 @@ Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &av
 
 vk::PresentModeKHR
 Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
-                               const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
+                                 const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
     std::unordered_map<vk::PresentModeKHR, bool> present_mode_availability;
 
     for (auto &available_present_mode : available_present_modes) {
@@ -150,7 +151,7 @@ void Application::initVulkan() {
 }
 
 void Application::createInstance(const std::vector<std::string_view> &layers,
-                                 const std::vector<std::string_view> &extensions) {
+                                  const std::vector<std::string_view> &extensions) {
     const auto vk_version = context.enumerateInstanceVersion();
     std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "."
               << vk::apiVersionMinor(vk_version) << std::endl;
@@ -310,7 +311,8 @@ int Application::ratePhysicalDevice(
     return score;
 }
 
-void Application::selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions) {
+void Application::selectPhysicalDevice(
+    const std::vector<std::string_view> &requested_extensions) {
     const std::vector<vk::raii::PhysicalDevice> physical_devices =
         instance.enumeratePhysicalDevices();
     if (physical_devices.empty()) {
@@ -337,7 +339,7 @@ void Application::selectPhysicalDevice(const std::vector<std::string_view> &requ
 }
 
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
-                                      const std::vector<std::string_view> &extensions) {
+                                        const std::vector<std::string_view> &extensions) {
     std::vector<uint32_t> indices = queueFamilies.getQueueFamilyIndices();
     std::set unique_queue_indices(indices.begin(), indices.end());
 
@@ -390,13 +392,14 @@ vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &cap
 }
 
 void Application::createSwapChain() {
-    const vk::SurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swapChainDetails.formats);
+    const vk::SurfaceFormatKHR surface_format =
+        chooseSwapSurfaceFormat(swapChainDetails.formats);
     const vk::PresentModeKHR present_mode =
         choosePresentMode(swapChainDetails.presentModes, {
-                                                             vk::PresentModeKHR::eMailbox,
-                                                             vk::PresentModeKHR::eFifoRelaxed,
-                                                             vk::PresentModeKHR::eFifo,
-                                                         });
+                                                               vk::PresentModeKHR::eMailbox,
+                                                               vk::PresentModeKHR::eFifoRelaxed,
+                                                               vk::PresentModeKHR::eFifo,
+                                                           });
 
     const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
@@ -485,6 +488,7 @@ void Application::createRenderPass() {
 }
 
 void Application::createGraphicsPipeline() {
+
 #include "triangle.spv.h"
 
     assert((void("Invalid SPIR-V magic number"), triangle[0] == 0x07230203));

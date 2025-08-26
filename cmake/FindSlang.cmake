@@ -21,7 +21,7 @@ if (NOT SLANGC_EXECUTABLE)
     CPMAddPackage(
             NAME slang
             GITHUB_REPOSITORY shader-slang/slang
-            GIT_TAG vulkan-sdk-1.4.309
+            GIT_TAG vulkan-sdk-1.4.321.0
             OPTIONS "SLANG_ENABLE_TESTS OFF" "SLANG_ENABLE_EXAMPLES OFF" "SLANG_ENABLE_GFX OFF" "SLANG_ENABLE_SLANGRT OFF" "SLANG_USE_SYSTEM_VULKAN_HEADERS ON"
     )
     # Quite hacky way to get the slangc executable from the build directory

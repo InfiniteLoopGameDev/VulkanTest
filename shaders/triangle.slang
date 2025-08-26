@@ -25,9 +25,9 @@ float3 linearToHDR10(float3 color) {
     var c2 = float3(2413.0 / 128.0);
     var c3 = float3(2392.0 / 128.0);
     var y = color / 80.0;
-    var ypow = pow(y, m1);
-    var numerator = c1 + (c2 * ypow);
-    var denominator = 1.0 + (c3 * ypow);
+    var y_pow = pow(y, m1);
+    var numerator = c1 + (c2 * y_pow);
+    var denominator = 1.0 + (c3 * y_pow);
     var fraction = numerator / denominator;
     return pow(fraction, m2);
 }

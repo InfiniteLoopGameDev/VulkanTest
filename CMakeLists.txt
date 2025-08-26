@@ -2,22 +2,22 @@ cmake_minimum_required(VERSION 3.25)
 
 project(VulkanTest)
 
+set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/.cache/cpm" CACHE STRING "CPM cache path")
+
 include(cmake/CPM.cmake)
 
 CPMFindPackage(
         NAME SFML
         GITHUB_REPOSITORY SFML/SFML
-        GIT_TAG 3.0.0
-        OPTIONS "SFML_BUILD_EXAMPLES OFF" "SFML_BUILD_NETWORK OFF"
-        "SFML_BUILD_AUDIO OFF" "SFML_BUILD_FREETYPE OFF" "SFML_BUILD_GRAPHICS OFF"
-        "SFML_BUILD_WINDOW ON" "SFML_USE_STATIC_STD_LIBS OFF"
+        GIT_TAG 3.0.1
+        OPTIONS "SFML_BUILD_NETWORK OFF" "SFML_BUILD_AUDIO OFF" "SFML_BUILD_GRAPHICS OFF"
+        "SFML_BUILD_WINDOW ON" "SFML_USE_STATIC_STD_LIBS OFF" "SFML_USE_SYSTEM_DEPS ON"
 )
 
 CPMFindPackage(
         NAME Vulkan
         GITHUB_REPOSITORY KhronosGroup/Vulkan-Headers
-        GIT_TAG vulkan-sdk-1.4.309
-        OPTIONS "VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=ON"
+        GIT_TAG vulkan-sdk-1.4.321.0
 )
 
 include(cmake/FindSlang.cmake) # Custom CMake module to find the Slang compiler on system or through CPM
