@@ -49,7 +49,14 @@ set(VKT_SLANG_SHADERS
 
 target_sources(VulkanTest PRIVATE ${VKT_SOURCES} ${VKT_HEADERS})
 
-add_shaders(VulkanTest ${VKT_SLANG_SHADERS})
+set(SHADER_CAPABILITIES
+        "spirv_1_5"
+)
+slang_compile_spirv(
+        TARGET_NAME VulkanTest
+        SOURCE_FILES ${VKT_SLANG_SHADERS}
+        CAPABILITIES ${SHADER_CAPABILITIES}
+)
 
 target_link_libraries(VulkanTest PRIVATE Vulkan::Headers)
 
