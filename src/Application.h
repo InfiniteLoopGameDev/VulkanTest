@@ -18,6 +18,9 @@ class Application {
     unsigned int maxFramesInFlight = 2;
     unsigned int currentFrame = 0;
 
+    unsigned int swapChainImageCount = 1;
+    unsigned int currentSwapChainImage = 0;
+
     unsigned int frameCount = 0;
     sf::Clock timer;
 

@@ -435,6 +435,7 @@ void Application::createSwapChain() {
     swapChainImageFormat = surface_format.format;
     swapChainExtent = extent;
     swapChainImages = swapChain.getImages();
+    swapChainImageCount = swapChainImages.size();
 
     device.setHdrMetadataEXT(*swapChain,
                              vk::HdrMetadataEXT({0.708, 0.292}, {0.170, 0.797}, {0.131, 0.046},
@@ -456,7 +457,7 @@ void Application::recreateSwapChain() {
 }
 
 void Application::createImageViews() {
-    swapChainImageViews.reserve(swapChainImages.size());
+    swapChainImageViews.reserve(swapChainImageCount);
 
     constexpr vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
                                                           1);
@@ -597,27 +598,32 @@ void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buf
     command_buffer.end();
 }
 
+// TODO: Make sure that there is the right number of semaphores when recreating the swap chain
 void Application::createSyncObjects() {
-    imageAvailableSemaphores.reserve(maxFramesInFlight);
-    renderFinishedSemaphores.reserve(maxFramesInFlight);
+    imageAvailableSemaphores.reserve(swapChainImageCount);
+    renderFinishedSemaphores.reserve(swapChainImageCount);
+
+    for (size_t i = 0; i < swapChainImageCount; i++) {
+        imageAvailableSemaphores.emplace_back(device.createSemaphore({}));
+        renderFinishedSemaphores.emplace_back(device.createSemaphore({}));
+    }
+
     inFlightFences.reserve(maxFramesInFlight);
 
     for (size_t i = 0; i < maxFramesInFlight; i++) {
-        imageAvailableSemaphores.emplace_back(device.createSemaphore({}));
-        renderFinishedSemaphores.emplace_back(device.createSemaphore({}));
         inFlightFences.emplace_back(device.createFence({vk::FenceCreateFlagBits::eSignaled}));
     }
 }
 
 void Application::drawFrame() {
 
+    const auto &current_image_available_semaphore = imageAvailableSemaphores[currentSwapChainImage];
+    const auto &current_render_finished_semaphore = renderFinishedSemaphores[currentSwapChainImage];
+
     const auto &current_command_buffer = commandBuffers[currentFrame];
-    const auto &current_image_available_semaphore = imageAvailableSemaphores[currentFrame];
-    const auto &current_render_finished_semaphore = renderFinishedSemaphores[currentFrame];
     const auto &current_in_flight_fence = inFlightFences[currentFrame];
 
-    while (vk::Result::eTimeout ==
-           device.waitForFences({current_in_flight_fence}, true, UINT64_MAX))
+    while (vk::Result::eTimeout == device.waitForFences(*current_in_flight_fence, true, UINT64_MAX))
         ;
 
     auto [result, image_index] =
@@ -633,7 +639,7 @@ void Application::drawFrame() {
         throw std::runtime_error("Failed to acquire swap chain image: " + vk::to_string(result));
     }
 
-    device.resetFences({current_in_flight_fence});
+    device.resetFences(*current_in_flight_fence);
 
     current_command_buffer.reset();
     recordCommandBuffer(current_command_buffer, image_index);
@@ -644,7 +650,7 @@ void Application::drawFrame() {
     const vk::SubmitInfo submit_info(*current_image_available_semaphore, wait_stages,
                                      *current_command_buffer, *current_render_finished_semaphore);
 
-    graphicsQueue.submit(submit_info, current_in_flight_fence);
+    graphicsQueue.submit(submit_info, *current_in_flight_fence);
 
     const vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain,
                                           image_index);
@@ -660,5 +666,6 @@ void Application::drawFrame() {
         throw std::runtime_error("Failed to present swap chain image: " + vk::to_string(result));
     }
 
+    currentSwapChainImage = ++currentSwapChainImage % swapChainImageCount;
     currentFrame = ++frameCount % maxFramesInFlight;
 }
