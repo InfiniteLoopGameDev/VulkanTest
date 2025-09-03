@@ -53,9 +53,8 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
     return vk::False;
 }
 
-bool Application::checkDeviceExtensions(
-    const vk::raii::PhysicalDevice &device,
-    const std::vector<std::string_view> &requested_extensions) {
+bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
+                                        const std::vector<std::string_view> &requested_extensions) {
     const std::vector<vk::ExtensionProperties> available_extensions =
         device.enumerateDeviceExtensionProperties();
     std::set<std::string> required_extensions(requested_extensions.begin(),
@@ -68,8 +67,8 @@ bool Application::checkDeviceExtensions(
     return required_extensions.empty();
 }
 
-vk::SurfaceFormatKHR Application::chooseSwapSurfaceFormat(
-    const std::vector<vk::SurfaceFormatKHR> &available_formats) {
+vk::SurfaceFormatKHR
+Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats) {
     int max = 0;
     vk::SurfaceFormatKHR best_format;
 
@@ -88,7 +87,7 @@ vk::SurfaceFormatKHR Application::chooseSwapSurfaceFormat(
 
 vk::PresentModeKHR
 Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
-                                 const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
+                               const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
     std::unordered_map<vk::PresentModeKHR, bool> present_mode_availability;
 
     for (auto &available_present_mode : available_present_modes) {
@@ -151,7 +150,7 @@ void Application::initVulkan() {
 }
 
 void Application::createInstance(const std::vector<std::string_view> &layers,
-                                  const std::vector<std::string_view> &extensions) {
+                                 const std::vector<std::string_view> &extensions) {
     const auto vk_version = context.enumerateInstanceVersion();
     std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "."
               << vk::apiVersionMinor(vk_version) << std::endl;
@@ -302,17 +301,21 @@ int Application::ratePhysicalDevice(
 
     score += static_cast<int>(properties.limits.maxImageDimension2D);
 
+    auto features2 =
+        physical_device
+            .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features>();
+
     if (!(ApplicationQueueFamilies(physical_device, surface).isComplete() &&
           features.geometryShader && checkDeviceExtensions(physical_device, requested_extensions) &&
-          ApplicationSwapChainDetails(physical_device, surface).isValid())) {
+          ApplicationSwapChainDetails(physical_device, surface).isValid() &&
+          features2.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters)) {
         return 0;
     }
 
     return score;
 }
 
-void Application::selectPhysicalDevice(
-    const std::vector<std::string_view> &requested_extensions) {
+void Application::selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions) {
     const std::vector<vk::raii::PhysicalDevice> physical_devices =
         instance.enumeratePhysicalDevices();
     if (physical_devices.empty()) {
@@ -339,7 +342,7 @@ void Application::selectPhysicalDevice(
 }
 
 void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
-                                        const std::vector<std::string_view> &extensions) {
+                                      const std::vector<std::string_view> &extensions) {
     std::vector<uint32_t> indices = queueFamilies.getQueueFamilyIndices();
     std::set unique_queue_indices(indices.begin(), indices.end());
 
@@ -363,10 +366,12 @@ void Application::createLogicalDevice(const std::vector<std::string_view> &layer
     auto c_layers = to_c_strings(layers);
     auto c_extensions = to_c_strings(extensions);
 
-    vk::DeviceCreateInfo device_create_info({}, queue_create_infos, c_layers, c_extensions,
-                                            &enabled_features);
+    vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceVulkan11Features>
+        device_create_info_chain{
+            vk::DeviceCreateInfo({}, queue_create_infos, c_layers, c_extensions, &enabled_features),
+            vk::PhysicalDeviceVulkan11Features().setShaderDrawParameters(true)};
 
-    device = physicalDevice.createDevice(device_create_info);
+    device = physicalDevice.createDevice(device_create_info_chain.get<vk::DeviceCreateInfo>());
 
     graphicsQueue = device.getQueue(indices[0], 0);
 }
@@ -392,14 +397,13 @@ vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &cap
 }
 
 void Application::createSwapChain() {
-    const vk::SurfaceFormatKHR surface_format =
-        chooseSwapSurfaceFormat(swapChainDetails.formats);
+    const vk::SurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swapChainDetails.formats);
     const vk::PresentModeKHR present_mode =
         choosePresentMode(swapChainDetails.presentModes, {
-                                                               vk::PresentModeKHR::eMailbox,
-                                                               vk::PresentModeKHR::eFifoRelaxed,
-                                                               vk::PresentModeKHR::eFifo,
-                                                           });
+                                                             vk::PresentModeKHR::eMailbox,
+                                                             vk::PresentModeKHR::eFifoRelaxed,
+                                                             vk::PresentModeKHR::eFifo,
+                                                         });
 
     const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
