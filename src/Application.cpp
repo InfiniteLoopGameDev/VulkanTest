@@ -25,7 +25,7 @@
 
     switch (surface_format.colorSpace) {
     case vk::ColorSpaceKHR::eHdr10St2084EXT:
-        // total += 1000;
+    // total += 1000;
     case vk::ColorSpaceKHR::eSrgbNonlinear:
         total += 500;
         break;
@@ -80,7 +80,7 @@ Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &av
     }
 
     std::cout << "Selected format: " << vk::to_string(best_format.format) << " "
-              << vk::to_string(best_format.colorSpace) << std::endl;
+        << vk::to_string(best_format.colorSpace) << std::endl;
 
     return best_format;
 }
@@ -153,7 +153,7 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
                                  const std::vector<std::string_view> &extensions) {
     const auto vk_version = context.enumerateInstanceVersion();
     std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "."
-              << vk::apiVersionMinor(vk_version) << std::endl;
+        << vk::apiVersionMinor(vk_version) << std::endl;
 
     constexpr vk::ApplicationInfo application_info("Triangle", vk::makeApiVersion(0, 0, 1, 0),
                                                    "No Engine", vk::makeApiVersion(0, 0, 1, 0),
@@ -177,7 +177,7 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
                                            ,
                                            debug_utils_messenger_create_info
 #endif
-    );
+        );
 
     instance = context.createInstance(instance_info_chain.get<vk::InstanceCreateInfo>());
 }
@@ -203,7 +203,7 @@ std::vector<std::string_view> Application::selectLayers() const {
         }
         if (!found) {
             std::cout << "Requested layer not found: " << std::string(requested_layer)
-                      << "; Expect issues" << std::endl;
+                << "; Expect issues" << std::endl;
         }
     }
 
@@ -283,14 +283,14 @@ int Application::ratePhysicalDevice(
     const auto features = physical_device.getFeatures();
 
     std::cout << "Found Device: " << properties.deviceName << " " << properties.vendorID << " "
-              << properties.deviceID << std::endl;
+        << properties.deviceID << std::endl;
     std::cout << "\t"
-              << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
-              << vk::apiVersionMinor(properties.apiVersion) << "."
-              << vk::apiVersionPatch(properties.apiVersion) << std::endl;
+        << "API Version: " << vk::apiVersionMajor(properties.apiVersion) << "."
+        << vk::apiVersionMinor(properties.apiVersion) << "."
+        << vk::apiVersionPatch(properties.apiVersion) << std::endl;
     std::cout << "\t" << "Driver Version: " << vk::apiVersionMajor(properties.driverVersion) << "."
-              << vk::apiVersionMinor(properties.driverVersion) << "."
-              << vk::apiVersionPatch(properties.driverVersion) << std::endl;
+        << vk::apiVersionMinor(properties.driverVersion) << "."
+        << vk::apiVersionPatch(properties.driverVersion) << std::endl;
     std::cout << "\t" << to_string(properties.deviceType) << std::endl;
 
     int score = 0;
@@ -303,7 +303,7 @@ int Application::ratePhysicalDevice(
 
     auto features2 =
         physical_device
-            .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features>();
+        .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features>();
 
     if (!(ApplicationQueueFamilies(physical_device, surface).isComplete() &&
           features.geometryShader && checkDeviceExtensions(physical_device, requested_extensions) &&
@@ -400,10 +400,10 @@ void Application::createSwapChain() {
     const vk::SurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swapChainDetails.formats);
     const vk::PresentModeKHR present_mode =
         choosePresentMode(swapChainDetails.presentModes, {
-                                                             vk::PresentModeKHR::eMailbox,
-                                                             vk::PresentModeKHR::eFifoRelaxed,
-                                                             vk::PresentModeKHR::eFifo,
-                                                         });
+                              vk::PresentModeKHR::eMailbox,
+                              vk::PresentModeKHR::eFifoRelaxed,
+                              vk::PresentModeKHR::eFifo,
+                          });
 
     const vk::Extent2D extent = chooseSwapExtent(swapChainDetails.capabilities);
 
@@ -623,8 +623,7 @@ void Application::drawFrame() {
     const auto &current_command_buffer = commandBuffers[currentFrame];
     const auto &current_in_flight_fence = inFlightFences[currentFrame];
 
-    while (vk::Result::eTimeout == device.waitForFences(*current_in_flight_fence, true, UINT64_MAX))
-        ;
+    while (vk::Result::eTimeout == device.waitForFences(*current_in_flight_fence, true, UINT64_MAX));
 
     auto [result, image_index] =
         swapChain.acquireNextImage(UINT64_MAX, current_image_available_semaphore);

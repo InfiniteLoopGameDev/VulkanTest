@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    {
+      "type": "cmake",
+      "label": "CMake: build",
+      "command": "build",
+      "targets": [
+        "VulkanTest"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "Build VulkanTest with CMake"
+    }
+  ],
+  "version": "2.0.0"
+}

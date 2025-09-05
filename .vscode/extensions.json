@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "ms-vscode.cpptools-extension-pack",
+    "xaver.clang-format",
+    "arno-dev.cpm-cmake-manager",
+    "shader-slang.slang-language-extension"
+  ]
+}

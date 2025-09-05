@@ -6,6 +6,12 @@
 #include "ApplicationQueueFamilies.h"
 #include "ApplicationSwapChainDetails.h"
 
+// TODO: VBO
+// TODO: UBO -> HDR Color-space: conversion
+// TODO: Switch to SDL or GLFW / SFML no OpenGL patch?
+// TODO: ~Use designated initializers~ seems to be complicated with ArrayNoProxies
+// TODO: Use VK_KHR_display for monitor selection and fullscreen logic
+
 class Application {
   public:
     Application();

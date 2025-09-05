@@ -38,7 +38,7 @@ function(slang_compile_spirv)
 
         add_custom_command(
                 OUTPUT "${SPIRV_DIR}/${SHADER_NAME}.spv.h"
-                COMMENT "Compiling ${SHADER_NAME}.slang to SPIR-V"
+                COMMENT "Building SPIR-V object ${SHADER_SOURCE}"
                 COMMAND ${SHADER_COMMAND}
                 DEPENDS ${SHADER_SOURCE}
         )
