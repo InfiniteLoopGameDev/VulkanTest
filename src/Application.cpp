@@ -257,8 +257,9 @@ void Application::mainLoop() {
     const auto on_resize = [this](const sf::Event::Resized &) { recreateSwapChain(); };
 
     const auto on_focus_lost = [this](const sf::Event::FocusLost &) {
-        while (not window.waitEvent()->is<sf::Event::FocusGained>())
-            ;
+        timer.stop();
+        while (not window.waitEvent()->is<sf::Event::FocusGained>());
+        timer.start();
     };
 
     const auto on_close = [this](const sf::Event::Closed &) {
