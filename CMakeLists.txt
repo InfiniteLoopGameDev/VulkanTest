@@ -20,6 +20,13 @@ CPMFindPackage(
         GIT_TAG vulkan-sdk-1.4.321.0
 )
 
+CPMFindPackage(
+        NAME glm
+        GITHUB_REPOSITORY g-truc/glm
+        GIT_TAG 1.0.1
+        OPTIONS "GLM_BUILD_TESTS=OFF"
+)
+
 include(cmake/FindSlang.cmake) # Custom CMake module to find the Slang compiler on system or through CPM
 include(cmake/SlangUtils.cmake)
 
@@ -36,12 +43,14 @@ set(VKT_SOURCES
         "src/Application.cpp"
         "src/ApplicationSwapChainDetails.cpp"
         "src/ApplicationQueueFamilies.cpp"
+        "src/Vertex.cpp"
 )
 set(VKT_HEADERS
         "src/utils.h"
         "src/Application.h"
         "src/ApplicationSwapChainDetails.h"
         "src/ApplicationQueueFamilies.h"
+        "src/Vertex.h"
 )
 set(VKT_SLANG_SHADERS
         "shaders/triangle.slang"
@@ -65,6 +74,8 @@ target_link_libraries(VulkanTest PRIVATE SFML::Window)
 if (TARGET SFML::Main)
     target_link_libraries(VulkanTest PRIVATE SFML::Main)
 endif ()
+
+target_link_libraries(VulkanTest PRIVATE glm::glm)
 
 if (BUILD_SHARED_LIBS)
     add_custom_command(TARGET VulkanTest POST_BUILD

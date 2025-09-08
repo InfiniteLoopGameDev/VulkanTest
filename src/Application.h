@@ -13,14 +13,14 @@
 // TODO: Use VK_KHR_display for monitor selection and fullscreen logic
 
 class Application {
-  public:
+public:
     Application();
 
     ~Application();
 
     void run();
 
-  private:
+private:
     unsigned int maxFramesInFlight = 2;
     unsigned int currentFrame = 0;
 
@@ -49,6 +49,8 @@ class Application {
     vk::raii::PipelineLayout pipelineLayout = nullptr;
     vk::raii::Pipeline graphicsPipeline = nullptr;
     vk::raii::CommandPool commandPool = nullptr;
+    vk::raii::Buffer vertexBuffer = nullptr;
+    vk::raii::DeviceMemory vertexBufferMemory = nullptr;
     std::vector<vk::raii::CommandBuffer> commandBuffers;
 
     vk::Format swapChainImageFormat;
@@ -68,10 +70,10 @@ class Application {
     static constexpr vk::DebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         {},
         vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-            vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
         vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-            vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-            vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+        vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
         debugCallback};
 
     static bool checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
@@ -124,6 +126,9 @@ class Application {
     void createFramebuffers();
 
     void createCommandPool();
+
+    void createVertexBuffer();
+
     void createCommandBuffers();
 
     void recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,

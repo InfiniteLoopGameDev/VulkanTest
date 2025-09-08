@@ -5,6 +5,7 @@
 #include "Application.h"
 
 #include "utils.h"
+#include "Vertex.h"
 
 #ifndef NDEBUG
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
@@ -34,6 +35,20 @@
     }
 
     return total;
+}
+
+[[nodiscard]] static uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &memory_properties,
+                                               uint32_t type_filter, vk::MemoryPropertyFlags property_flags) {
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+        if (
+            type_filter & (1 << i)
+            && (memory_properties.memoryTypes[i].propertyFlags & property_flags) == property_flags
+        ) {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Failed to find suitable memory type");
 }
 
 Application::Application() {
@@ -144,6 +159,9 @@ void Application::initVulkan() {
     createFramebuffers();
 
     createCommandPool();
+
+    createVertexBuffer();
+
     createCommandBuffers();
 
     createSyncObjects();
@@ -367,10 +385,10 @@ void Application::createLogicalDevice(const std::vector<std::string_view> &layer
     auto c_layers = to_c_strings(layers);
     auto c_extensions = to_c_strings(extensions);
 
-    vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDeviceVulkan11Features>
-        device_create_info_chain{
-            vk::DeviceCreateInfo({}, queue_create_infos, c_layers, c_extensions, &enabled_features),
-            vk::PhysicalDeviceVulkan11Features().setShaderDrawParameters(true)};
+    vk::StructureChain device_create_info_chain{
+        vk::DeviceCreateInfo({}, queue_create_infos, c_layers, c_extensions, &enabled_features),
+        vk::PhysicalDeviceVulkan11Features().setShaderDrawParameters(true),
+    };
 
     device = physicalDevice.createDevice(device_create_info_chain.get<vk::DeviceCreateInfo>());
 
@@ -511,7 +529,9 @@ void Application::createGraphicsPipeline() {
 
     vk::PipelineShaderStageCreateInfo shader_stages[] = {vertex_stage_info, fragment_stage_info};
 
-    vk::PipelineVertexInputStateCreateInfo vertex_input_info;
+    auto binding_descriptions = Vertex::getBindingDescriptions();
+    auto attribute_descriptions = Vertex::getAttributeDescriptions();
+    vk::PipelineVertexInputStateCreateInfo vertex_input_info{{}, binding_descriptions, attribute_descriptions};
 
     vk::PipelineInputAssemblyStateCreateInfo input_assembly_info(
         {}, vk::PrimitiveTopology::eTriangleList, false);
@@ -568,6 +588,34 @@ void Application::createCommandPool() {
     commandPool = device.createCommandPool(pool_info);
 }
 
+void Application::createVertexBuffer() {
+    const std::vector<Vertex> vertices{{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                       {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                       {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+
+    const vk::BufferCreateInfo buffer_info({}, sizeof(vertices[0]) * vertices.size(),
+                                           vk::BufferUsageFlagBits::eVertexBuffer,
+                                           vk::SharingMode::eExclusive);
+    vertexBuffer = device.createBuffer(buffer_info);
+
+    const vk::MemoryRequirements memory_requirements = vertexBuffer.getMemoryRequirements();
+    vk::MemoryAllocateInfo memory_allocate_info(memory_requirements.size,
+                                                find_memory_type(physicalDevice.getMemoryProperties(),
+                                                                 memory_requirements.memoryTypeBits,
+                                                                 vk::MemoryPropertyFlagBits::eHostVisible |
+                                                                 vk::MemoryPropertyFlagBits::eHostCoherent)
+        );
+    vertexBufferMemory = device.allocateMemory(memory_allocate_info);
+
+    vertexBuffer.bindMemory(vertexBufferMemory, 0);
+
+    void *data_location = vertexBufferMemory.mapMemory(0, buffer_info.size);
+    std::memcpy(data_location, vertices.data(), buffer_info.size);
+
+    vertexBufferMemory.unmapMemory();
+}
+
+
 void Application::createCommandBuffers() {
     commandBuffers.reserve(maxFramesInFlight);
 
@@ -591,6 +639,8 @@ void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buf
     command_buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
     command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+
+    command_buffer.bindVertexBuffers(0, *vertexBuffer, {0});
 
     command_buffer.draw(3, 1, 0, 0);
 
