@@ -161,6 +161,7 @@ void Application::initVulkan() {
     createCommandPool();
 
     createVertexBuffer();
+    createIndexBuffer();
 
     createCommandBuffers();
 
@@ -621,9 +622,10 @@ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Application::createBuffer(
 
 
 void Application::createVertexBuffer() {
-    const std::vector<Vertex> vertices{{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                       {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-                                       {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+    const std::vector<Vertex> vertices{{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                       {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                                       {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+                                       {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 
     const vk::DeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
 
@@ -641,6 +643,30 @@ void Application::createVertexBuffer() {
                                                               vk::MemoryPropertyFlagBits::eDeviceLocal);
 
     copyBuffer(stage_buffer, vertexBuffer, buffer_size);
+}
+
+void Application::createIndexBuffer() {
+    const std::vector<uint16_t> indices = {
+        0, 1, 2, 2, 3, 0
+    };
+
+    const vk::DeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+
+    auto [stage_buffer, stage_buffer_memory] = createBuffer(buffer_size, vk::BufferUsageFlagBits::eTransferSrc,
+                                                            vk::MemoryPropertyFlagBits::eHostVisible |
+                                                            vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    void *data_location = stage_buffer_memory.mapMemory(0, buffer_size);
+    std::memcpy(data_location, indices.data(), buffer_size);
+    stage_buffer_memory.unmapMemory();
+
+    std::tie(indexBuffer, indexBufferMemory) = createBuffer(buffer_size,
+                                                            vk::BufferUsageFlagBits::eIndexBuffer |
+                                                            vk::BufferUsageFlagBits::eTransferDst,
+                                                            vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+    copyBuffer(stage_buffer, indexBuffer, buffer_size);
+
 }
 
 
@@ -669,8 +695,9 @@ void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buf
     command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
     command_buffer.bindVertexBuffers(0, *vertexBuffer, {0});
+    command_buffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
 
-    command_buffer.draw(3, 1, 0, 0);
+    command_buffer.drawIndexed(6, 1, 0, 0, 0);
 
     command_buffer.endRenderPass();
 

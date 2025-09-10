@@ -6,11 +6,11 @@
 #include "ApplicationQueueFamilies.h"
 #include "ApplicationSwapChainDetails.h"
 
-// TODO: VBO
 // TODO: UBO -> HDR Color-space: conversion
 // TODO: Switch to SDL or GLFW / SFML no OpenGL patch?
 // TODO: ~Use designated initializers~ seems to be complicated with ArrayNoProxies
 // TODO: Use VK_KHR_display for monitor selection and fullscreen logic
+// TODO: Combine vertex and index into one (with offsets)
 
 class Application {
 public:
@@ -51,6 +51,8 @@ private:
     vk::raii::CommandPool commandPool = nullptr;
     vk::raii::Buffer vertexBuffer = nullptr;
     vk::raii::DeviceMemory vertexBufferMemory = nullptr;
+    vk::raii::Buffer indexBuffer = nullptr;
+    vk::raii::DeviceMemory indexBufferMemory = nullptr;
     std::vector<vk::raii::CommandBuffer> commandBuffers;
 
     vk::Format swapChainImageFormat;
@@ -129,9 +131,12 @@ private:
 
     void copyBuffer(const vk::raii::Buffer &src_buffer, vk::raii::Buffer &dst_buffer, vk::DeviceSize size);
 
-    std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-                                                                     vk::MemoryPropertyFlags properties) const;
+    [[nodiscard]] std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> createBuffer(
+        vk::DeviceSize size, vk::BufferUsageFlags usage,
+        vk::MemoryPropertyFlags properties) const;
+
     void createVertexBuffer();
+    void createIndexBuffer();
 
     void createCommandBuffers();
 
