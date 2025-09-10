@@ -1,4 +1,7 @@
 {
+    "files.exclude": {
+        ".idea": true,
+    },
     "cSpell.words": [
         "sfml"
     ],

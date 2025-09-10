@@ -41,6 +41,7 @@ function(slang_compile_spirv)
                 COMMENT "Building SPIR-V object ${SHADER_SOURCE}"
                 COMMAND ${SHADER_COMMAND}
                 DEPENDS ${SHADER_SOURCE}
+                WORKING_DIRECTORY $<TARGET_FILE_DIR:slang::slangc>
         )
 
         add_custom_target(${SHADER_NAME} DEPENDS ${SPIRV_DIR}/${SHADER_NAME}.spv.h)
