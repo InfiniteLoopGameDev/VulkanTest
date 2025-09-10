@@ -7,9 +7,9 @@
 #include "ApplicationSwapChainDetails.h"
 
 // TODO: UBO -> HDR Color-space: conversion
-// TODO: Switch to SDL or GLFW / SFML no OpenGL patch?
+// TODO: Switch to SDL / SFML no OpenGL patch?
+// TODO: Use SFML multi-monitor fork or use SDL
 // TODO: ~Use designated initializers~ seems to be complicated with ArrayNoProxies
-// TODO: Use VK_KHR_display for monitor selection and fullscreen logic
 // TODO: Combine vertex and index into one (with offsets)
 
 class Application {
