@@ -127,6 +127,10 @@ private:
 
     void createCommandPool();
 
+    void copyBuffer(const vk::raii::Buffer &src_buffer, vk::raii::Buffer &dst_buffer, vk::DeviceSize size);
+
+    std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
+                                                                     vk::MemoryPropertyFlags properties) const;
     void createVertexBuffer();
 
     void createCommandBuffers();
