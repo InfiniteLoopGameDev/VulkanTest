@@ -26,7 +26,8 @@
 
     switch (surface_format.colorSpace) {
     case vk::ColorSpaceKHR::eHdr10St2084EXT:
-    // total += 1000;
+        // total += 1000;
+        break;
     case vk::ColorSpaceKHR::eSrgbNonlinear:
         total += 500;
         break;
