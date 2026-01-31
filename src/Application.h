@@ -1,10 +1,11 @@
 #pragma once
 
-#include <SFML/Window.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <SFML/System.hpp>
 
 #include "ApplicationQueueFamilies.h"
 #include "ApplicationSwapChainDetails.h"
+#include "Window/Window.h"
 
 // TODO: UBO -> HDR Color-space: conversion
 // TODO: Switch to SDL / SFML no OpenGL patch?
@@ -12,7 +13,8 @@
 // TODO: ~Use designated initializers~ seems to be complicated with ArrayNoProxies
 // TODO: Combine vertex and index into one (with offsets)
 
-class Application {
+class Application
+{
 public:
     Application();
 
@@ -21,6 +23,9 @@ public:
     void run();
 
 private:
+    bool windowOpen = true;
+    bool paused = false;
+
     unsigned int maxFramesInFlight = 2;
     unsigned int currentFrame = 0;
 
@@ -30,7 +35,7 @@ private:
     unsigned int frameCount = 0;
     sf::Clock timer;
 
-    sf::WindowBase window;
+    std::unique_ptr<window::Window> window;
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
     vk::raii::SurfaceKHR surface = nullptr;
@@ -64,10 +69,12 @@ private:
     ApplicationQueueFamilies queueFamilies;
     ApplicationSwapChainDetails swapChainDetails;
 
+    void windowCallback(events::event event);
+
     static VKAPI_ATTR vk::Bool32 VKAPI_CALL
     debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
                   vk::DebugUtilsMessageTypeFlagsEXT message_type,
-                  const vk::DebugUtilsMessengerCallbackDataEXT *callback_data, void *user_data);
+                  const vk::DebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 
     static constexpr vk::DebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         {},
@@ -76,25 +83,26 @@ private:
         vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
         vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
         vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-        debugCallback};
+        debugCallback
+    };
 
-    static bool checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
-                                      const std::vector<std::string_view> &requested_extensions);
+    static bool checkDeviceExtensions(const vk::raii::PhysicalDevice& device,
+                                      const std::vector<std::string_view>& requested_extensions);
 
     [[nodiscard]] static vk::SurfaceFormatKHR
-    chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats);
+    chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats);
 
     [[nodiscard]] static vk::PresentModeKHR
-    choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
-                      const std::vector<vk::PresentModeKHR> &present_mode_preferences);
+    choosePresentMode(const std::vector<vk::PresentModeKHR>& available_present_modes,
+                      const std::vector<vk::PresentModeKHR>& present_mode_preferences);
 
     [[nodiscard]] vk::Extent2D
-    chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const;
+    chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const;
 
     void initVulkan();
 
-    void createInstance(const std::vector<std::string_view> &layers,
-                        const std::vector<std::string_view> &extensions);
+    void createInstance(const std::vector<std::string_view>& layers,
+                        const std::vector<std::string_view>& extensions);
 
     [[nodiscard]] std::vector<std::string_view> selectLayers() const;
 
@@ -102,18 +110,16 @@ private:
 
     void setupDebugMessenger();
 
-    void mainLoop();
-
-    void selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions);
+    void selectPhysicalDevice(const std::vector<std::string_view>& requested_extensions);
 
     void createSurface();
 
-    void createLogicalDevice(const std::vector<std::string_view> &layers,
-                             const std::vector<std::string_view> &extensions);
+    void createLogicalDevice(const std::vector<std::string_view>& layers,
+                             const std::vector<std::string_view>& extensions);
 
     [[nodiscard]] int
-    ratePhysicalDevice(const vk::raii::PhysicalDevice &physical_device,
-                       const std::vector<std::string_view> &requested_extensions) const;
+    ratePhysicalDevice(const vk::raii::PhysicalDevice& physical_device,
+                       const std::vector<std::string_view>& requested_extensions) const;
 
     void createSwapChain();
 
@@ -129,7 +135,7 @@ private:
 
     void createCommandPool();
 
-    void copyBuffer(const vk::raii::Buffer &src_buffer, vk::raii::Buffer &dst_buffer, vk::DeviceSize size);
+    void copyBuffer(const vk::raii::Buffer& src_buffer, const vk::raii::Buffer& dst_buffer, vk::DeviceSize size) const;
 
     [[nodiscard]] std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> createBuffer(
         vk::DeviceSize size, vk::BufferUsageFlags usage,
@@ -140,7 +146,7 @@ private:
 
     void createCommandBuffers();
 
-    void recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,
+    void recordCommandBuffer(const vk::raii::CommandBuffer& command_buffer,
                              uint32_t image_index) const;
 
     void drawFrame();

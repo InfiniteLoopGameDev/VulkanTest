@@ -68,10 +68,9 @@ classDiagram
         +GLTFModel(vec3 position, quat rotation, vec3 scale, path location) GLTFModel
     }
 
-    EventData <|-- Resize
-    EventData <|-- FocusChange
-    EventData <|-- KeyPress
-    Event o-- EventData
+    Event <|-- Resize
+    Event <|-- FocusChange
+    Event <|-- KeyPress
     KeyPress *-- KeyCode
     namespace Events {
         class KeyCode {
@@ -92,61 +91,30 @@ classDiagram
             +KeyCode keycode
         }
 
-        class EventData {
-            <<abstract>>
-        }
-
         class Event {
-            +EventData data
-            +is~T inherits EventData~() bool
         }
     }
 
-    Window ..> WindowPointer
     Window ..> Event
     Window <|-- SFMLWindow: implements
     Window <|-- SDLWindow: implements
     Window <|-- Win32Window: implements
     Window <|-- WaylandWindow: implements
+    Renderer *-- Window
     class Window {
         <<interface>>
-        +bool hdrSupported
         +Window(ivec2 size, string title, bool fullscreen, bool resizable)
         +isOpen() bool
+        +isHdrSupported() bool
         +close()
         +getSize() ivec2
         +setSize(ivec2 size)
         +getWindowPointer() WindowPointer
         +pollEvent() Event
-    }
-
-    WindowPointerData <|-- WaylandPointer
-    WindowPointerData <|-- X11Pointer
-    WindowPointerData <|-- Win32Pointer
-    WindowPointer o-- WindowPointerData
-    Renderer *-- WindowPointer
-    namespace WindowPointers {
-        class WaylandPointer {
-            +wl_display* display
-            +wl_surface* surface
-        }
-        class X11Pointer {
-            +xcb_connection_t connection
-            +xcb_window_t window
-        }
-        class Win32Pointer {
-            +HINSTANCE hinstance
-            +HWND hwnd
-        }
-
-        class WindowPointerData {
-            <<abstract>>
-        }
-
-        class WindowPointer {
-            +WindowPointerData data
-            +is~T inherits WindowPointerData~() bool
-        }
+        +createSurfaceKhr(Instance instance) SurfaceKHR;
+        +getVulkanRequiredInstanceExtensions() string[]
+        +getHwnd() HWND;
+        #function~Event~ eventHandler
     }
 
     Application *-- Renderer

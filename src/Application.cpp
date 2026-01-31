@@ -6,15 +6,19 @@
 
 #include "utils.h"
 #include "Vertex.h"
+#include "SFML/Window/Event.hpp"
+#include "Window/Win32Window.h"
 
 #ifndef NDEBUG
 #define VALIDATION_LAYERS // CMake only sets NDEBUG on Release builds
 #endif
 
-[[nodiscard]] static int rate_surface_format(const vk::SurfaceFormatKHR &surface_format) {
+[[nodiscard]] static int rate_surface_format(const vk::SurfaceFormatKHR& surface_format)
+{
     int total = 0;
 
-    switch (surface_format.format) {
+    switch (surface_format.format)
+    {
     case vk::Format::eA2B10G10R10UnormPack32:
         total += 500;
     case vk::Format::eB8G8R8A8Unorm:
@@ -24,7 +28,8 @@
         return 0;
     }
 
-    switch (surface_format.colorSpace) {
+    switch (surface_format.colorSpace)
+    {
     case vk::ColorSpaceKHR::eHdr10St2084EXT:
         // total += 1000;
         break;
@@ -38,13 +43,16 @@
     return total;
 }
 
-[[nodiscard]] static uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &memory_properties,
-                                               uint32_t type_filter, vk::MemoryPropertyFlags property_flags) {
-    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+[[nodiscard]] static uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties& memory_properties,
+                                               uint32_t type_filter, vk::MemoryPropertyFlags property_flags)
+{
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+    {
         if (
             type_filter & (1 << i)
             && (memory_properties.memoryTypes[i].propertyFlags & property_flags) == property_flags
-        ) {
+        )
+        {
             return i;
         }
     }
@@ -52,8 +60,39 @@
     throw std::runtime_error("Failed to find suitable memory type");
 }
 
-Application::Application() {
-    window.create(sf::VideoMode({1280, 720}), "Triangle", sf::Style::Default);
+template <class... Ts>
+struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+
+void Application::windowCallback(events::event event)
+{
+    std::visit(overloaded{
+                   [this](const events::Resize&) { recreateSwapChain(); },
+                   [this](const events::VisibilityChange& ev)
+                   {
+                       paused = !ev.isVisible;
+                       timer.stop();
+                       while (paused)
+                       {
+                           std::printf("Paused");
+                       }
+                       timer.start();
+                   },
+                   [this](const events::Close&)
+                   {
+                       windowOpen = false;
+                   }
+               }, event);
+}
+
+Application::Application()
+{
+    auto event_handler = [this](const events::event event) { this->windowCallback(event); };
+
+    window = std::make_unique<window::Win32Window>(
+        glm::ivec2(1280, 720), "Triangle", false, true, event_handler);
     initVulkan();
 }
 
@@ -62,21 +101,23 @@ Application::~Application() = default;
 VKAPI_ATTR vk::Bool32 VKAPI_CALL Application::debugCallback(
     [[maybe_unused]] vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
     [[maybe_unused]] vk::DebugUtilsMessageTypeFlagsEXT message_type,
-    const vk::DebugUtilsMessengerCallbackDataEXT *callback_data, [[maybe_unused]] void *user_data) {
-
+    const vk::DebugUtilsMessengerCallbackDataEXT* callback_data, [[maybe_unused]] void* user_data)
+{
     std::cerr << "Validation layer: " << callback_data->pMessage << std::endl;
 
     return vk::False;
 }
 
-bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
-                                        const std::vector<std::string_view> &requested_extensions) {
+bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice& device,
+                                        const std::vector<std::string_view>& requested_extensions)
+{
     const std::vector<vk::ExtensionProperties> available_extensions =
         device.enumerateDeviceExtensionProperties();
     std::set<std::string> required_extensions(requested_extensions.begin(),
                                               requested_extensions.end());
 
-    for (auto &extension : available_extensions) {
+    for (auto& extension : available_extensions)
+    {
         required_extensions.erase(extension.extensionName);
     }
 
@@ -84,12 +125,15 @@ bool Application::checkDeviceExtensions(const vk::raii::PhysicalDevice &device,
 }
 
 vk::SurfaceFormatKHR
-Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &available_formats) {
+Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats)
+{
     int max = 0;
     vk::SurfaceFormatKHR best_format;
 
-    for (auto &available_format : available_formats) {
-        if (const int rating = rate_surface_format(available_format); rating > max) {
+    for (auto& available_format : available_formats)
+    {
+        if (const int rating = rate_surface_format(available_format); rating > max)
+        {
             best_format = available_format;
             max = rating;
         }
@@ -102,15 +146,18 @@ Application::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &av
 }
 
 vk::PresentModeKHR
-Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_present_modes,
-                               const std::vector<vk::PresentModeKHR> &present_mode_preferences) {
+Application::choosePresentMode(const std::vector<vk::PresentModeKHR>& available_present_modes,
+                               const std::vector<vk::PresentModeKHR>& present_mode_preferences)
+{
     std::unordered_map<vk::PresentModeKHR, bool> present_mode_availability;
 
-    for (auto &available_present_mode : available_present_modes) {
+    for (auto& available_present_mode : available_present_modes)
+    {
         present_mode_availability[available_present_mode] = true;
     }
 
-    for (auto &present_mode : present_mode_preferences) {
+    for (auto& present_mode : present_mode_preferences)
+    {
         if (present_mode_availability[present_mode])
             return present_mode;
     }
@@ -118,19 +165,28 @@ Application::choosePresentMode(const std::vector<vk::PresentModeKHR> &available_
     return vk::PresentModeKHR::eFifo; // Guaranteed to be available
 }
 
-void Application::run() {
+void Application::run()
+{
     timer.restart();
 
-    mainLoop();
+    while (windowOpen)
+    {
+        window->pollEvents();
+        drawFrame();
+    }
+
+    device.waitIdle();
 
     const float fps = static_cast<float>(frameCount) / timer.reset().asSeconds();
     std::cout << "Framerate: " << fps << " FPS" << std::endl;
 }
 
-void Application::initVulkan() {
-    if (!sf::Vulkan::isAvailable()) {
+void Application::initVulkan()
+{
+    /*if (!sf::Vulkan::isAvailable())
+    {
         throw std::runtime_error("Vulkan is not available");
-    }
+    }*/
 
     const auto layers = selectLayers();
 
@@ -144,8 +200,11 @@ void Application::initVulkan() {
 
     createSurface();
 
-    const std::vector<std::string_view> device_extensions = {vk::KHRSwapchainExtensionName,
-                                                             vk::EXTHdrMetadataExtensionName};
+    const std::vector<std::string_view> device_extensions = {
+        vk::KHRSwapchainExtensionName,
+        vk::EXTHdrMetadataExtensionName
+    };
+
     selectPhysicalDevice(device_extensions);
 
     createLogicalDevice(layers, device_extensions);
@@ -169,8 +228,9 @@ void Application::initVulkan() {
     createSyncObjects();
 }
 
-void Application::createInstance(const std::vector<std::string_view> &layers,
-                                 const std::vector<std::string_view> &extensions) {
+void Application::createInstance(const std::vector<std::string_view>& layers,
+                                 const std::vector<std::string_view>& extensions)
+{
     const auto vk_version = context.enumerateInstanceVersion();
     std::cout << "Vulkan version: " << vk::apiVersionMajor(vk_version) << "."
         << vk::apiVersionMinor(vk_version) << std::endl;
@@ -197,13 +257,13 @@ void Application::createInstance(const std::vector<std::string_view> &layers,
                                            ,
                                            debug_utils_messenger_create_info
 #endif
-        );
+    );
 
     instance = context.createInstance(instance_info_chain.get<vk::InstanceCreateInfo>());
 }
 
-std::vector<std::string_view> Application::selectLayers() const {
-
+std::vector<std::string_view> Application::selectLayers() const
+{
     std::vector<std::string_view> requested_layers;
 
 #ifdef VALIDATION_LAYERS
@@ -212,16 +272,20 @@ std::vector<std::string_view> Application::selectLayers() const {
 
     std::vector<vk::LayerProperties> layers = context.enumerateInstanceLayerProperties();
     std::vector<std::string_view> available_layers;
-    for (auto &requested_layer : requested_layers) {
+    for (auto& requested_layer : requested_layers)
+    {
         bool found = false;
-        for (auto &layer : layers) {
-            if (static_cast<std::string_view>(layer.layerName.data()) == requested_layer.data()) {
+        for (auto& layer : layers)
+        {
+            if (static_cast<std::string_view>(layer.layerName.data()) == requested_layer.data())
+            {
                 available_layers.push_back(requested_layer);
                 std::cout << "Found layer: " << requested_layer << std::endl;
                 found = true;
             }
         }
-        if (!found) {
+        if (!found)
+        {
             std::cout << "Requested layer not found: " << std::string(requested_layer)
                 << "; Expect issues" << std::endl;
         }
@@ -230,13 +294,12 @@ std::vector<std::string_view> Application::selectLayers() const {
     return available_layers;
 }
 
-std::vector<std::string_view> Application::selectExtensions() const {
+std::vector<std::string_view> Application::selectExtensions() const
+{
     std::vector<vk::ExtensionProperties> extensions =
         context.enumerateInstanceExtensionProperties();
 
-    auto sfml_extensions = sf::Vulkan::getGraphicsRequiredInstanceExtensions();
-    std::vector<std::string_view> required_extensions(sfml_extensions.begin(),
-                                                      sfml_extensions.end());
+    auto required_extensions = window->getVulkanRequiredInstanceExtensions();
 
     required_extensions.emplace_back(vk::EXTSwapchainColorSpaceExtensionName);
 
@@ -249,57 +312,38 @@ std::vector<std::string_view> Application::selectExtensions() const {
 #endif
 
     std::vector<std::string_view> available_extensions;
-    for (const auto &required_extension : required_extensions) {
+    for (const auto& required_extension : required_extensions)
+    {
         bool found = false;
-        for (auto &extension : extensions) {
+        for (auto& extension : extensions)
+        {
             if (static_cast<std::string_view>(extension.extensionName.data()) ==
-                required_extension) {
+                required_extension)
+            {
                 std::cout << "Found extension: " << required_extension << std::endl;
                 available_extensions.push_back(required_extension);
                 found = true;
             }
         }
-        if (!found) {
+        if (!found)
+        {
             throw std::runtime_error("Required extension not found: " +
-                                     std::string(required_extension));
+                std::string(required_extension));
         }
     }
 
     return available_extensions;
 }
 
-void Application::setupDebugMessenger() {
+void Application::setupDebugMessenger()
+{
     debugMessenger = instance.createDebugUtilsMessengerEXT(debug_utils_messenger_create_info);
 }
 
-void Application::mainLoop() {
-
-    const auto on_resize = [this](const sf::Event::Resized &) { recreateSwapChain(); };
-
-    const auto on_focus_lost = [this](const sf::Event::FocusLost &) {
-        timer.stop();
-        while (not window.waitEvent()->is<sf::Event::FocusGained>());
-        timer.start();
-    };
-
-    const auto on_close = [this](const sf::Event::Closed &) {
-        device.waitIdle();
-        window.close();
-    };
-
-    while (true) {
-        window.handleEvents(on_resize, on_focus_lost, on_close);
-        if (!window.isOpen())
-            break;
-
-        drawFrame();
-    }
-}
-
 int Application::ratePhysicalDevice(
-    const vk::raii::PhysicalDevice &physical_device,
-    const std::vector<std::string_view> &requested_extensions) const {
-
+    const vk::raii::PhysicalDevice& physical_device,
+    const std::vector<std::string_view>& requested_extensions) const
+{
     const auto properties = physical_device.getProperties();
     const auto features = physical_device.getFeatures();
 
@@ -316,7 +360,8 @@ int Application::ratePhysicalDevice(
 
     int score = 0;
 
-    if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+    if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+    {
         score += 1000;
     }
 
@@ -327,27 +372,32 @@ int Application::ratePhysicalDevice(
         .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features>();
 
     if (!(ApplicationQueueFamilies(physical_device, surface).isComplete() &&
-          features.geometryShader && checkDeviceExtensions(physical_device, requested_extensions) &&
-          ApplicationSwapChainDetails(physical_device, surface).isValid() &&
-          features2.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters)) {
+        features.geometryShader && checkDeviceExtensions(physical_device, requested_extensions) &&
+        ApplicationSwapChainDetails(physical_device, surface).isValid() &&
+        features2.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters))
+    {
         return 0;
     }
 
     return score;
 }
 
-void Application::selectPhysicalDevice(const std::vector<std::string_view> &requested_extensions) {
+void Application::selectPhysicalDevice(const std::vector<std::string_view>& requested_extensions)
+{
     const std::vector<vk::raii::PhysicalDevice> physical_devices =
         instance.enumeratePhysicalDevices();
-    if (physical_devices.empty()) {
+    if (physical_devices.empty())
+    {
         throw std::runtime_error("No physical devices found");
     }
 
     int max = 0;
 
     // TODO: Use std::max_element with custom comparator
-    for (auto &item : physical_devices) {
-        if (const int rating = ratePhysicalDevice(item, requested_extensions); rating > max) {
+    for (auto& item : physical_devices)
+    {
+        if (const int rating = ratePhysicalDevice(item, requested_extensions); rating > max)
+        {
             physicalDevice = item;
             max = rating;
         }
@@ -362,19 +412,22 @@ void Application::selectPhysicalDevice(const std::vector<std::string_view> &requ
     std::cout << "Selected Device: " << physicalDevice.getProperties().deviceName << std::endl;
 }
 
-void Application::createLogicalDevice(const std::vector<std::string_view> &layers,
-                                      const std::vector<std::string_view> &extensions) {
+void Application::createLogicalDevice(const std::vector<std::string_view>& layers,
+                                      const std::vector<std::string_view>& extensions)
+{
     std::vector<uint32_t> indices = queueFamilies.getQueueFamilyIndices();
     std::set unique_queue_indices(indices.begin(), indices.end());
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
-    for (uint32_t queue_family_index : unique_queue_indices) {
+    for (uint32_t queue_family_index : unique_queue_indices)
+    {
         auto queue_priority = {1.0f};
         vk::DeviceQueueCreateInfo queue_create_info({}, queue_family_index, queue_priority);
         queue_create_infos.push_back(queue_create_info);
     }
 
-    constexpr auto enabled_features = [] {
+    constexpr auto enabled_features = []
+    {
         vk::PhysicalDeviceFeatures features;
         features.geometryShader = true;
 #ifdef NDEBUG
@@ -397,27 +450,28 @@ void Application::createLogicalDevice(const std::vector<std::string_view> &layer
     graphicsQueue = device.getQueue(indices[0], 0);
 }
 
-void Application::createSurface() {
-    VkSurfaceKHR vk_surface;
-    if (!window.createVulkanSurface(*instance, vk_surface))
-        throw std::runtime_error("Failed to create Vulkan surface");
-    surface = vk::raii::SurfaceKHR(instance, vk_surface);
+void Application::createSurface()
+{
+    surface = window->createVulkanSurface(instance);
 }
 
-vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const {
-    const sf::Vector2u window_size = window.getSize();
+vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const
+{
+    const glm::ivec2 window_size = window->getSize();
 
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
         return capabilities.currentExtent;
     }
-    const vk::Extent2D extent(std::clamp(window_size.x, capabilities.minImageExtent.width,
+    const vk::Extent2D extent(std::clamp(static_cast<uint32_t>(window_size.x), capabilities.minImageExtent.width,
                                          capabilities.maxImageExtent.width),
-                              std::clamp(window_size.y, capabilities.minImageExtent.height,
+                              std::clamp(static_cast<uint32_t>(window_size.y), capabilities.minImageExtent.height,
                                          capabilities.maxImageExtent.height));
     return extent;
 }
 
-void Application::createSwapChain() {
+void Application::createSwapChain()
+{
     const vk::SurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swapChainDetails.formats);
     const vk::PresentModeKHR present_mode =
         choosePresentMode(swapChainDetails.presentModes, {
@@ -430,7 +484,8 @@ void Application::createSwapChain() {
 
     uint32_t image_count = swapChainDetails.capabilities.minImageCount + 1;
     if (swapChainDetails.capabilities.maxImageCount > 0 &&
-        image_count > swapChainDetails.capabilities.maxImageCount) {
+        image_count > swapChainDetails.capabilities.maxImageCount)
+    {
         image_count = swapChainDetails.capabilities.maxImageCount;
     }
 
@@ -443,11 +498,14 @@ void Application::createSwapChain() {
     swap_chain_create_info.presentMode = present_mode;
     swap_chain_create_info.clipped = true;
 
-    if (queueFamilies.areUnique()) {
+    if (queueFamilies.areUnique())
+    {
         const auto queue_families = queueFamilies.getQueueFamilyIndices();
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eConcurrent;
         swap_chain_create_info.setQueueFamilyIndices(queue_families);
-    } else {
+    }
+    else
+    {
         swap_chain_create_info.imageSharingMode = vk::SharingMode::eExclusive;
     }
 
@@ -463,7 +521,8 @@ void Application::createSwapChain() {
                                                 {0.3127, 0.3290}, 400, 0, 400, 400));
 }
 
-void Application::recreateSwapChain() {
+void Application::recreateSwapChain()
+{
     device.waitIdle();
 
     swapChainFramebuffers.clear();
@@ -477,13 +536,15 @@ void Application::recreateSwapChain() {
     createFramebuffers();
 }
 
-void Application::createImageViews() {
+void Application::createImageViews()
+{
     swapChainImageViews.reserve(swapChainImageCount);
 
     constexpr vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
                                                           1);
 
-    for (const auto &image : swapChainImages) {
+    for (const auto& image : swapChainImages)
+    {
         vk::ImageViewCreateInfo create_info({}, image, vk::ImageViewType::e2D, swapChainImageFormat,
                                             {}, subresource_range);
 
@@ -491,7 +552,8 @@ void Application::createImageViews() {
     }
 }
 
-void Application::createRenderPass() {
+void Application::createRenderPass()
+{
     const vk::AttachmentDescription color_attachments(
         {}, swapChainImageFormat, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare,
@@ -513,8 +575,8 @@ void Application::createRenderPass() {
     renderPass = device.createRenderPass(render_pass_info);
 }
 
-void Application::createGraphicsPipeline() {
-
+void Application::createGraphicsPipeline()
+{
 #include "triangle.spv.h"
 
     assert((void("Invalid SPIR-V magic number"), triangle[0] == 0x07230203));
@@ -553,7 +615,7 @@ void Application::createGraphicsPipeline() {
                                                               false, 1.0f);
 
     auto color_write_mask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                            vk::ColorComponentFlagBits::eB;
+        vk::ColorComponentFlagBits::eB;
 
     vk::PipelineColorBlendAttachmentState color_blend_attachment(
         false, vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
@@ -571,9 +633,11 @@ void Application::createGraphicsPipeline() {
     graphicsPipeline = device.createGraphicsPipeline(nullptr, graphics_pipeline_create_info);
 }
 
-void Application::createFramebuffers() {
+void Application::createFramebuffers()
+{
     swapChainFramebuffers.reserve(swapChainImageViews.size());
-    for (auto &image_views : swapChainImageViews) {
+    for (auto& image_views : swapChainImageViews)
+    {
         vk::ImageView attachments[] = {image_views};
 
         vk::FramebufferCreateInfo framebuffer_info(
@@ -583,7 +647,8 @@ void Application::createFramebuffers() {
     }
 }
 
-void Application::createCommandPool() {
+void Application::createCommandPool()
+{
     const vk::CommandPoolCreateInfo pool_info(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
                                               queueFamilies.graphicsFamily.value());
 
@@ -591,7 +656,9 @@ void Application::createCommandPool() {
 }
 
 
-void Application::copyBuffer(const vk::raii::Buffer &src_buffer, vk::raii::Buffer &dst_buffer, vk::DeviceSize size) {
+void Application::copyBuffer(const vk::raii::Buffer& src_buffer, const vk::raii::Buffer& dst_buffer,
+                             vk::DeviceSize size) const
+{
     vk::CommandBufferAllocateInfo command_buffer_allocate_info(commandPool, vk::CommandBufferLevel::ePrimary, 1);
     vk::raii::CommandBuffer command_copy_buffer = std::move(
         device.allocateCommandBuffers(command_buffer_allocate_info).front());
@@ -606,7 +673,8 @@ void Application::copyBuffer(const vk::raii::Buffer &src_buffer, vk::raii::Buffe
 }
 
 std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Application::createBuffer(
-    const vk::DeviceSize size, const vk::BufferUsageFlags usage, const vk::MemoryPropertyFlags properties) const {
+    const vk::DeviceSize size, const vk::BufferUsageFlags usage, const vk::MemoryPropertyFlags properties) const
+{
     const vk::BufferCreateInfo buffer_create_info({}, size, usage, vk::SharingMode::eExclusive);
     vk::raii::Buffer buffer(device, buffer_create_info);
     const vk::MemoryRequirements memory_requirements = buffer.getMemoryRequirements();
@@ -615,18 +683,20 @@ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Application::createBuffer(
                                                 physicalDevice.getMemoryProperties(),
                                                 memory_requirements.memoryTypeBits,
                                                 properties)
-        );
+    );
     vk::raii::DeviceMemory buffer_memory(device, alloc_info);
     buffer.bindMemory(*buffer_memory, 0);
     return {std::move(buffer), std::move(buffer_memory)};
 };
 
 
-void Application::createVertexBuffer() {
-    const std::vector<Vertex> vertices{{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                       {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                                       {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                                       {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+void Application::createVertexBuffer()
+{
+    const std::vector<Vertex> vertices{
+        {{0, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    };
 
     const vk::DeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
 
@@ -634,7 +704,7 @@ void Application::createVertexBuffer() {
                                                             vk::MemoryPropertyFlagBits::eHostVisible |
                                                             vk::MemoryPropertyFlagBits::eHostCoherent);
 
-    void *data_location = stage_buffer_memory.mapMemory(0, buffer_size);
+    void* data_location = stage_buffer_memory.mapMemory(0, buffer_size);
     std::memcpy(data_location, vertices.data(), buffer_size);
     stage_buffer_memory.unmapMemory();
 
@@ -646,7 +716,8 @@ void Application::createVertexBuffer() {
     copyBuffer(stage_buffer, vertexBuffer, buffer_size);
 }
 
-void Application::createIndexBuffer() {
+void Application::createIndexBuffer()
+{
     const std::vector<uint16_t> indices = {
         0, 1, 2, 2, 3, 0
     };
@@ -657,7 +728,7 @@ void Application::createIndexBuffer() {
                                                             vk::MemoryPropertyFlagBits::eHostVisible |
                                                             vk::MemoryPropertyFlagBits::eHostCoherent);
 
-    void *data_location = stage_buffer_memory.mapMemory(0, buffer_size);
+    void* data_location = stage_buffer_memory.mapMemory(0, buffer_size);
     std::memcpy(data_location, indices.data(), buffer_size);
     stage_buffer_memory.unmapMemory();
 
@@ -667,11 +738,11 @@ void Application::createIndexBuffer() {
                                                             vk::MemoryPropertyFlagBits::eDeviceLocal);
 
     copyBuffer(stage_buffer, indexBuffer, buffer_size);
-
 }
 
 
-void Application::createCommandBuffers() {
+void Application::createCommandBuffers()
+{
     commandBuffers.reserve(maxFramesInFlight);
 
     const vk::CommandBufferAllocateInfo command_buffer_allocate_info(
@@ -680,8 +751,9 @@ void Application::createCommandBuffers() {
     commandBuffers = device.allocateCommandBuffers(command_buffer_allocate_info);
 }
 
-void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buffer,
-                                      const uint32_t image_index) const {
+void Application::recordCommandBuffer(const vk::raii::CommandBuffer& command_buffer,
+                                      const uint32_t image_index) const
+{
     command_buffer.begin(
         vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
@@ -706,35 +778,41 @@ void Application::recordCommandBuffer(const vk::raii::CommandBuffer &command_buf
 }
 
 // TODO: Make sure that there is the right number of semaphores when recreating the swap chain
-void Application::createSyncObjects() {
+void Application::createSyncObjects()
+{
     imageAvailableSemaphores.reserve(swapChainImageCount);
     renderFinishedSemaphores.reserve(swapChainImageCount);
 
-    for (size_t i = 0; i < swapChainImageCount; i++) {
+    for (size_t i = 0; i < swapChainImageCount; i++)
+    {
         imageAvailableSemaphores.emplace_back(device.createSemaphore({}));
         renderFinishedSemaphores.emplace_back(device.createSemaphore({}));
     }
 
     inFlightFences.reserve(maxFramesInFlight);
 
-    for (size_t i = 0; i < maxFramesInFlight; i++) {
+    for (size_t i = 0; i < maxFramesInFlight; i++)
+    {
         inFlightFences.emplace_back(device.createFence({vk::FenceCreateFlagBits::eSignaled}));
     }
 }
 
-void Application::drawFrame() {
+void Application::drawFrame()
+{
+    const auto& current_image_available_semaphore = imageAvailableSemaphores[currentSwapChainImage];
+    const auto& current_render_finished_semaphore = renderFinishedSemaphores[currentSwapChainImage];
 
-    const auto &current_image_available_semaphore = imageAvailableSemaphores[currentSwapChainImage];
-    const auto &current_render_finished_semaphore = renderFinishedSemaphores[currentSwapChainImage];
+    const auto& current_command_buffer = commandBuffers[currentFrame];
+    const auto& current_in_flight_fence = inFlightFences[currentFrame];
 
-    const auto &current_command_buffer = commandBuffers[currentFrame];
-    const auto &current_in_flight_fence = inFlightFences[currentFrame];
-
-    while (vk::Result::eTimeout == device.waitForFences(*current_in_flight_fence, true, UINT64_MAX));
+    while (vk::Result::eTimeout == device.waitForFences(*current_in_flight_fence, true, UINT64_MAX))
+    {
+    }
 
     auto [result, image_index] =
         swapChain.acquireNextImage(UINT64_MAX, current_image_available_semaphore);
-    switch (result) {
+    switch (result)
+    {
     case vk::Result::eErrorOutOfDateKHR:
         recreateSwapChain();
         return;
@@ -751,7 +829,8 @@ void Application::drawFrame() {
     recordCommandBuffer(current_command_buffer, image_index);
 
     constexpr std::array<vk::PipelineStageFlags, 1> wait_stages{
-        vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        vk::PipelineStageFlagBits::eColorAttachmentOutput
+    };
 
     const vk::SubmitInfo submit_info(*current_image_available_semaphore, wait_stages,
                                      *current_command_buffer, *current_render_finished_semaphore);
@@ -761,7 +840,8 @@ void Application::drawFrame() {
     const vk::PresentInfoKHR present_info(*current_render_finished_semaphore, *swapChain,
                                           image_index);
     result = graphicsQueue.presentKHR(present_info);
-    switch (result) {
+    switch (result)
+    {
     case vk::Result::eErrorOutOfDateKHR:
     case vk::Result::eSuboptimalKHR:
         recreateSwapChain();
