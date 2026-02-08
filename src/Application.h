@@ -48,6 +48,10 @@ private:
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
     std::vector<vk::raii::Fence> inFlightFences;
 
+    vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
+    vk::raii::DescriptorPool descriptorPool = nullptr;
+    vk::raii::DescriptorSets descriptorSets = nullptr;
+
     vk::raii::Queue graphicsQueue = nullptr;
     vk::raii::SwapchainKHR swapChain = nullptr;
     vk::raii::RenderPass renderPass = nullptr;
@@ -126,6 +130,9 @@ private:
     void recreateSwapChain();
 
     void createImageViews();
+
+    void createDescriptorSetLayout();
+    void createDescriptorSets();
 
     void createRenderPass();
 

@@ -26,7 +26,7 @@ namespace window
 
         const auto window_style = [fullscreen, resizable]
         {
-            long style = fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+            DWORD style = fullscreen ? WS_POPUP : WS_OVERLAPPEDWINDOW;
             if (!resizable)
                 style &= ~WS_THICKFRAME;
             return style;
